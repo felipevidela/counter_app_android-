@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.counter_app.data.AppDatabase
 import com.example.counter_app.data.User
 import com.example.counter_app.data.UserRepository
+import com.example.counter_app.security.SecurityLogger
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: UserRepository
+    private val securityLogger = SecurityLogger.getInstance()
 
     init {
         val userDao = AppDatabase.getDatabase(application).userDao()
@@ -22,8 +24,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val user = repository.getUser(username)
             if (user != null && user.passwordHash == hashPassword(password)) {
+                // Security: Log successful authentication
+                securityLogger.logLoginSuccess(username)
                 onResult(true)
             } else {
+                // Security: Log failed authentication attempt
+                securityLogger.logLoginFailure(username, "Credenciales inválidas")
                 onResult(false)
             }
         }
@@ -32,6 +38,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun register(username: String, password: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
             if (repository.getUser(username) != null) {
+                // Security: Log failed registration (user already exists)
+                securityLogger.logLoginFailure(username, "Intento de registro con usuario existente")
                 onResult("El usuario ya existe")
                 return@launch
             }
@@ -44,6 +52,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
             val user = User(username, hashPassword(password))
             repository.insertUser(user)
+
+            // Security: Log successful registration
+            securityLogger.logLoginSuccess(username)
             onResult("Success")
         }
     }

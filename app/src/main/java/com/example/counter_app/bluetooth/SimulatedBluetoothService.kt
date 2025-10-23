@@ -4,6 +4,7 @@ import android.bluetooth.le.ScanResult
 import com.example.counter_app.data.CounterData
 import com.example.counter_app.data.CounterEvent
 import com.example.counter_app.data.EventType
+import com.example.counter_app.security.SecurityLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,10 @@ class SimulatedBluetoothService : BluetoothServiceInterface {
     private var left = 0
     private var isScanning = false
     private var isConnected = false
+    private var currentDeviceAddress: String? = null
+
+    // Security logger for auditing
+    private val securityLogger = SecurityLogger.getInstance()
 
     // CoroutineScope for running background tasks
     private val serviceScope = CoroutineScope(Dispatchers.Default)
@@ -56,8 +61,13 @@ class SimulatedBluetoothService : BluetoothServiceInterface {
 
     override fun connectToDevice(deviceAddress: String) {
         isConnected = true
+        currentDeviceAddress = deviceAddress
         _connectionStateFlow.value = "Conectado"
         onConnectionStateChange?.invoke("Conectado")
+
+        // Security: Log Bluetooth connection
+        securityLogger.logBluetoothConnect(deviceAddress, null)
+
         serviceScope.launch {
             delay(500)
             onServicesDiscovered?.invoke(listOf(COUNTER_SERVICE_UUID))
@@ -121,14 +131,21 @@ class SimulatedBluetoothService : BluetoothServiceInterface {
     }
 
     override fun disconnect() {
+        // Security: Log Bluetooth disconnection
+        securityLogger.logBluetoothDisconnect(currentDeviceAddress, null, "Normal")
+
         isConnected = false
         counterJob?.cancel()
         counterJob = null
         _connectionStateFlow.value = "Desconectado"
         onConnectionStateChange?.invoke("Desconectado")
+        currentDeviceAddress = null
     }
 
     override fun resetAndDisconnect() {
+        // Security: Log Bluetooth disconnection and reset
+        securityLogger.logBluetoothDisconnect(currentDeviceAddress, null, "Reset manual")
+
         // Stop counter generation
         isConnected = false
         counterJob?.cancel()
@@ -145,5 +162,7 @@ class SimulatedBluetoothService : BluetoothServiceInterface {
 
         // Notify listeners
         onConnectionStateChange?.invoke("Desconectado")
+
+        currentDeviceAddress = null
     }
 }
