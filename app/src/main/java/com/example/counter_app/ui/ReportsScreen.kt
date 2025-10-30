@@ -172,9 +172,14 @@ fun ReportsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "Entradas y Salidas en el Tiempo",
+                    "Actividad por Evento",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "Muestra cuántas personas entraron y salieron en cada lectura",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 if (chartData.isEmpty()) {

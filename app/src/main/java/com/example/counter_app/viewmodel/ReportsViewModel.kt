@@ -39,8 +39,40 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
             val (startTime, endTime) = range.getTimeRange()
             sensorReadingRepository.getReadingsByDateRange(deviceId, startTime, endTime)
                 .map { readings ->
-                    readings.map { reading ->
-                        ChartData(reading.timestamp, reading.entered, reading.left)
+                    // Convert cumulative values to incremental deltas
+                    if (readings.isEmpty()) {
+                        emptyList()
+                    } else {
+                        // Calculate deltas between consecutive readings
+                        val chartDataList = mutableListOf<ChartData>()
+
+                        // First reading shows its values as-is (starting point)
+                        chartDataList.add(
+                            ChartData(
+                                timestamp = readings[0].timestamp,
+                                entered = readings[0].entered,
+                                left = readings[0].left
+                            )
+                        )
+
+                        // For subsequent readings, calculate the delta from previous
+                        for (i in 1 until readings.size) {
+                            val current = readings[i]
+                            val previous = readings[i - 1]
+
+                            val enteredDelta = (current.entered - previous.entered).coerceAtLeast(0)
+                            val leftDelta = (current.left - previous.left).coerceAtLeast(0)
+
+                            chartDataList.add(
+                                ChartData(
+                                    timestamp = current.timestamp,
+                                    entered = enteredDelta,
+                                    left = leftDelta
+                                )
+                            )
+                        }
+
+                        chartDataList
                     }
                 }
         } else {
