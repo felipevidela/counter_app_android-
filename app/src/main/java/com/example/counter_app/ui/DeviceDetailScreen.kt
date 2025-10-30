@@ -11,6 +11,9 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -485,36 +488,147 @@ fun StatCard(label: String, value: String, backgroundColor: androidx.compose.ui.
 
 @Composable
 fun ReadingCard(reading: SensorReading) {
+    var expanded by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
     val dateString = dateFormat.format(Date(reading.timestamp))
+    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    val timeString = timeFormat.format(Date(reading.timestamp))
+    val fullDateFormat = SimpleDateFormat("EEEE, dd 'de' MMMM 'de' yyyy", Locale("es", "ES"))
+    val fullDateString = fullDateFormat.format(Date(reading.timestamp))
 
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = dateString,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Entraron: ${reading.entered} | Salieron: ${reading.left}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    OutlinedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = dateString,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Entraron: ${reading.entered} | Salieron: ${reading.left}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${reading.entered - reading.left}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Mostrar menos" else "Mostrar más",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
-            Text(
-                text = "${reading.entered - reading.left}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            if (expanded) {
+                Divider()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Información Detallada",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Fecha completa
+                    DetailRow(label = "Fecha", value = fullDateString)
+                    DetailRow(label = "Hora exacta", value = timeString)
+
+                    Divider()
+
+                    // Sensores
+                    DetailRow(label = "Sensor de entrada", value = "${reading.entered} detecciones")
+                    DetailRow(label = "Sensor de salida", value = "${reading.left} detecciones")
+
+                    Divider()
+
+                    // Cálculos
+                    val currentOccupancy = reading.entered - reading.left
+                    val occupancyPercentage = (currentOccupancy.toFloat() / reading.capacity.toFloat() * 100).toInt()
+
+                    DetailRow(label = "Aforo actual", value = "$currentOccupancy personas")
+                    DetailRow(label = "Capacidad máxima", value = "${reading.capacity} personas")
+                    DetailRow(label = "Porcentaje ocupación", value = "$occupancyPercentage%")
+
+                    // Estado
+                    val status = when {
+                        currentOccupancy > reading.capacity -> "⚠️ Sobrecapacidad"
+                        occupancyPercentage >= 90 -> "⚠️ Cerca del límite"
+                        occupancyPercentage >= 70 -> "✓ Ocupación alta"
+                        occupancyPercentage >= 40 -> "✓ Ocupación media"
+                        else -> "✓ Ocupación baja"
+                    }
+
+                    DetailRow(
+                        label = "Estado",
+                        value = status,
+                        valueColor = when {
+                            currentOccupancy > reading.capacity -> MaterialTheme.colorScheme.error
+                            occupancyPercentage >= 90 -> Color(0xFFF57C00)
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        "ID de lectura: #${reading.id}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
+    }
+}
+
+@Composable
+fun DetailRow(
+    label: String,
+    value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = valueColor
+        )
     }
 }
