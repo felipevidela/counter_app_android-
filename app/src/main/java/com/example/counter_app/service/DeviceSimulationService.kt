@@ -67,10 +67,8 @@ class DeviceSimulationService(private val application: Application) {
     }
 
     private fun generateInitialData(): Pair<Int, Int> {
-        // Start with a realistic initial state for a mall store
-        val entered = Random.nextInt(20, 100)
-        val left = Random.nextInt((entered * 0.7).toInt(), entered)
-        return Pair(entered, left)
+        // Start from zero for new devices
+        return Pair(0, 0)
     }
 
     private fun generateIncrementalData(currentEntered: Int, currentLeft: Int): Pair<Int, Int> {
