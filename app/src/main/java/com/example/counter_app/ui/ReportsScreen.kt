@@ -10,6 +10,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.counter_app.viewmodel.ReportsViewModel
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -68,10 +70,12 @@ fun ReportsScreen(
                 }
             }
         } else {
+            val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
