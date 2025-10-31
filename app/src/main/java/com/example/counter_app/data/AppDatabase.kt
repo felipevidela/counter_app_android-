@@ -47,8 +47,8 @@ import androidx.room.TypeConverters
  * @see SensorReading entidad de lecturas
  */
 @Database(
-    entities = [User::class, Device::class, SensorReading::class],
-    version = 3,
+    entities = [User::class, Device::class, SensorReading::class, SensorEvent::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -57,6 +57,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun deviceDao(): DeviceDao
     abstract fun sensorReadingDao(): SensorReadingDao
+    abstract fun sensorEventDao(): SensorEventDao
 
     companion object {
         @Volatile

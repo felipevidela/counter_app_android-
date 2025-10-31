@@ -13,4 +13,14 @@ class Converters {
     fun dateToTimestamp(date: Date?): Long? {
         return date?.time
     }
+
+    @TypeConverter
+    fun fromEventType(value: EventType): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toEventType(value: String): EventType {
+        return EventType.valueOf(value)
+    }
 }

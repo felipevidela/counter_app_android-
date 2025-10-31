@@ -22,7 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.counter_app.service.DeviceSimulationService
+import com.example.counter_app.service.EventBasedSimulationService
 
 sealed class AppScreen(val route: String, val name: String, val icon: @Composable () -> Unit) {
     object Dashboard : AppScreen("dashboard", "Dispositivos", { Icon(Icons.Default.Dashboard, contentDescription = null) })
@@ -35,14 +35,14 @@ fun NewMainScreen(onLogout: () -> Unit) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    // Initialize simulation service
+    // Initialize event-based simulation service
     val simulationService = remember {
-        DeviceSimulationService(context.applicationContext as Application)
+        EventBasedSimulationService(context.applicationContext as Application)
     }
 
     // Start simulation when entering main screen
     DisposableEffect(Unit) {
-        simulationService.startSimulation(intervalSeconds = 5)
+        simulationService.startSimulation(eventIntervalMillis = 2000..8000)
         onDispose {
             simulationService.stopSimulation()
             simulationService.cleanup()
