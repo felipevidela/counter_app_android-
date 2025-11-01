@@ -24,6 +24,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
+    val alertSettings by viewModel.alertSettings.collectAsState()
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showPermissionRationaleDialog by remember { mutableStateOf(false) }
@@ -212,6 +213,140 @@ fun SettingsScreen(
                         valueRange = 1f..30f,
                         steps = 28
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Alertas Configurables",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Alerta de Aforo Bajo
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Alerta de Aforo Bajo", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Notificar cuando la ocupación sea baja",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = alertSettings.lowOccupancyEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.updateLowOccupancyAlert(enabled, alertSettings.lowOccupancyThreshold)
+                            }
+                        )
+                    }
+                    if (alertSettings.lowOccupancyEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Umbral: ${alertSettings.lowOccupancyThreshold}% de capacidad",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertSettings.lowOccupancyThreshold.toFloat(),
+                            onValueChange = { value ->
+                                viewModel.updateLowOccupancyAlert(true, value.toInt())
+                            },
+                            valueRange = 5f..30f,
+                            steps = 24
+                        )
+                    }
+                }
+            }
+
+            // Alerta de Aforo Alto
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Alerta de Aforo Alto", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Notificar cuando se acerque a capacidad máxima",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = alertSettings.highOccupancyEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.updateHighOccupancyAlert(enabled, alertSettings.highOccupancyThreshold)
+                            }
+                        )
+                    }
+                    if (alertSettings.highOccupancyEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Umbral: ${alertSettings.highOccupancyThreshold}% de capacidad",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertSettings.highOccupancyThreshold.toFloat(),
+                            onValueChange = { value ->
+                                viewModel.updateHighOccupancyAlert(true, value.toInt())
+                            },
+                            valueRange = 70f..100f,
+                            steps = 29
+                        )
+                    }
+                }
+            }
+
+            // Alerta de Pico de Tráfico
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Alerta de Pico de Tráfico", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Notificar cuando haya muchas entradas en poco tiempo",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = alertSettings.trafficPeakEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.updateTrafficPeakAlert(enabled, alertSettings.trafficPeakThreshold)
+                            }
+                        )
+                    }
+                    if (alertSettings.trafficPeakEnabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Umbral: ${alertSettings.trafficPeakThreshold} entradas en 5 minutos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertSettings.trafficPeakThreshold.toFloat(),
+                            onValueChange = { value ->
+                                viewModel.updateTrafficPeakAlert(true, value.toInt())
+                            },
+                            valueRange = 5f..20f,
+                            steps = 14
+                        )
+                    }
                 }
             }
 

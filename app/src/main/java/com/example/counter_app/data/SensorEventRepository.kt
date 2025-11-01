@@ -76,16 +76,20 @@ class SensorEventRepository(private val sensorEventDao: SensorEventDao) {
     }
 
     /**
-     * Elimina todos los eventos de un dispositivo.
+     * Elimina todos los eventos de un dispositivo y resetea el ID autoincrement.
      */
     suspend fun clearEvents(deviceId: Long) {
         sensorEventDao.deleteEventsByDevice(deviceId)
+        // Resetear autoincrement después de borrar
+        sensorEventDao.resetAutoIncrement()
     }
 
     /**
-     * Elimina eventos antiguos.
+     * Elimina eventos antiguos y resetea el ID autoincrement.
      */
     suspend fun deleteOldEvents(beforeTimestamp: Long) {
         sensorEventDao.deleteOldEvents(beforeTimestamp)
+        // Resetear autoincrement después de borrar
+        sensorEventDao.resetAutoIncrement()
     }
 }

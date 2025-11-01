@@ -28,15 +28,26 @@ class EventBasedSimulationService(private val application: Application) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val deviceRepository: DeviceRepository
     private val sensorEventRepository: SensorEventRepository
+    private val settingsRepository: SettingsRepository
     private val notificationHandler: NotificationHandler
 
     private var simulationJob: Job? = null
     private var isRunning = false
 
+    // Tracking para alertas
+    private val recentEntriesMap = mutableMapOf<Long, MutableList<Long>>() // deviceId -> lista de timestamps de entradas
+    private val lastAlertTimeMap = mutableMapOf<String, Long>() // "deviceId_alertType" -> timestamp
+
+    companion object {
+        private const val ALERT_THROTTLE_INTERVAL = 10 * 60 * 1000L // 10 minutos entre alertas del mismo tipo
+        private const val TRAFFIC_PEAK_WINDOW = 5 * 60 * 1000L // Ventana de 5 minutos para pico de tráfico
+    }
+
     init {
         val database = AppDatabase.getDatabase(application)
         deviceRepository = DeviceRepository(database.deviceDao())
         sensorEventRepository = SensorEventRepository(database.sensorEventDao())
+        settingsRepository = SettingsRepository(database.alertSettingsDao())
         notificationHandler = NotificationHandler(application)
     }
 
@@ -82,8 +93,8 @@ class EventBasedSimulationService(private val application: Application) {
     }
 
     private suspend fun generateEventForDevice(device: Device) {
-        // 5% de probabilidad de evento de desconexión
-        if (Random.nextInt(100) < 5) {
+        // 10% de probabilidad de evento de desconexión
+        if (Random.nextInt(100) < 10) {
             // Crear evento de desconexión
             val disconnectionEvent = SensorEvent(
                 deviceId = device.id,
@@ -128,6 +139,9 @@ class EventBasedSimulationService(private val application: Application) {
         )
 
         sensorEventRepository.insertEvent(event)
+
+        // Verificar condiciones de alerta después de cada evento
+        checkAlertConditions(device, event)
     }
 
     /**
@@ -162,21 +176,132 @@ class EventBasedSimulationService(private val application: Application) {
     }
 
     /**
-     * Genera un tamaño de grupo realista para un mall.
+     * Genera un tamaño de grupo para dispositivos Arduino.
      *
-     * Distribución:
-     * - 40% personas solas (1)
-     * - 30% parejas (2)
-     * - 20% grupos pequeños (3)
-     * - 10% grupos grandes (4-6)
+     * Los sensores Arduino solo pueden detectar una persona a la vez,
+     * por lo que siempre retorna 1.
+     *
+     * NOTA: Código anterior soportaba grupos de 1-6 personas.
+     * Se cambió para simular comportamiento de hardware real.
      */
     private fun generateGroupSize(): Int {
+        // Arduino: solo eventos de 1 persona a la vez
+        return 1
+
+        /* Código anterior (grupos variables):
         return when (Random.nextInt(100)) {
             in 0..39 -> 1       // 40% solo
             in 40..69 -> 2      // 30% parejas
             in 70..89 -> 3      // 20% grupos pequeños
             else -> Random.nextInt(4, 7)  // 10% grupos grandes (4-6)
         }
+        */
+    }
+
+    /**
+     * Verifica las condiciones de alerta después de cada evento.
+     *
+     * @param device Dispositivo que generó el evento
+     * @param event Evento recién insertado
+     */
+    private suspend fun checkAlertConditions(device: Device, event: SensorEvent) {
+        // Obtener configuración de alertas
+        val alertSettings = settingsRepository.getAlertSettings().first()
+
+        // Obtener ocupación actual después del evento
+        val currentOccupancy = sensorEventRepository.getCurrentOccupancy(device.id)
+
+        // Trackear entradas para detección de pico de tráfico
+        if (event.eventType == EventType.ENTRY) {
+            val recentEntries = recentEntriesMap.getOrPut(device.id) { mutableListOf() }
+            recentEntries.add(event.timestamp)
+
+            // Limpiar entradas más antiguas que la ventana de 5 minutos
+            val windowStart = event.timestamp - TRAFFIC_PEAK_WINDOW
+            recentEntries.removeAll { it < windowStart }
+        }
+
+        // 1. Verificar Alerta de Aforo Bajo
+        if (alertSettings.lowOccupancyEnabled) {
+            val occupancyPercentage = if (device.capacity > 0) {
+                (currentOccupancy.toFloat() / device.capacity) * 100
+            } else {
+                0f
+            }
+
+            if (occupancyPercentage < alertSettings.lowOccupancyThreshold) {
+                if (shouldSendAlert(device.id, "low_occupancy")) {
+                    notificationHandler.showLowOccupancyAlert(
+                        deviceName = device.name,
+                        currentOccupancy = currentOccupancy,
+                        threshold = alertSettings.lowOccupancyThreshold
+                    )
+                    updateLastAlertTime(device.id, "low_occupancy")
+                }
+            }
+        }
+
+        // 2. Verificar Alerta de Aforo Alto
+        if (alertSettings.highOccupancyEnabled) {
+            val occupancyPercentage = if (device.capacity > 0) {
+                (currentOccupancy.toFloat() / device.capacity) * 100
+            } else {
+                0f
+            }
+
+            if (occupancyPercentage >= alertSettings.highOccupancyThreshold) {
+                if (shouldSendAlert(device.id, "high_occupancy")) {
+                    notificationHandler.showHighOccupancyAlert(
+                        deviceName = device.name,
+                        currentOccupancy = currentOccupancy,
+                        capacity = device.capacity
+                    )
+                    updateLastAlertTime(device.id, "high_occupancy")
+                }
+            }
+        }
+
+        // 3. Verificar Alerta de Pico de Tráfico
+        if (alertSettings.trafficPeakEnabled && event.eventType == EventType.ENTRY) {
+            val recentEntries = recentEntriesMap[device.id] ?: emptyList()
+
+            if (recentEntries.size >= alertSettings.trafficPeakThreshold) {
+                if (shouldSendAlert(device.id, "traffic_peak")) {
+                    notificationHandler.showTrafficPeakAlert(
+                        deviceName = device.name,
+                        entriesCount = recentEntries.size
+                    )
+                    updateLastAlertTime(device.id, "traffic_peak")
+                }
+            }
+        }
+    }
+
+    /**
+     * Determina si se debe enviar una alerta basándose en el throttling.
+     *
+     * Evita spam de notificaciones del mismo tipo en corto tiempo.
+     *
+     * @param deviceId ID del dispositivo
+     * @param alertType Tipo de alerta ("low_occupancy", "high_occupancy", "traffic_peak")
+     * @return true si han pasado suficiente tiempo desde la última alerta de este tipo
+     */
+    private fun shouldSendAlert(deviceId: Long, alertType: String): Boolean {
+        val key = "${deviceId}_${alertType}"
+        val lastAlertTime = lastAlertTimeMap[key] ?: 0L
+        val currentTime = System.currentTimeMillis()
+        return (currentTime - lastAlertTime) >= ALERT_THROTTLE_INTERVAL
+    }
+
+    /**
+     * Actualiza el timestamp de la última alerta enviada.
+     *
+     * @param deviceId ID del dispositivo
+     * @param alertType Tipo de alerta
+     */
+    private fun updateLastAlertTime(deviceId: Long, alertType: String) {
+        val key = "${deviceId}_${alertType}"
+        lastAlertTimeMap[key] = System.currentTimeMillis()
     }
 
     fun cleanup() {

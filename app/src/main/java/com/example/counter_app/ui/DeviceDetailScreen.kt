@@ -1,11 +1,14 @@
 package com.example.counter_app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Sensors
@@ -19,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,7 +30,10 @@ import com.example.counter_app.data.Device
 import com.example.counter_app.data.SensorEvent
 import com.example.counter_app.data.EventType
 import com.example.counter_app.ui.components.BreadcrumbNavigation
+import com.example.counter_app.util.ExportManager
 import com.example.counter_app.viewmodel.DeviceDetailViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -41,6 +48,7 @@ fun DeviceDetailScreen(
         viewModel.setDeviceId(deviceId)
     }
 
+    val context = LocalContext.current
     val device by viewModel.device.collectAsState(initial = null)
     val latestEvent by viewModel.latestEvent.collectAsState(initial = null)
     val recentEvents by viewModel.recentEvents.collectAsState(initial = emptyList())
@@ -48,6 +56,9 @@ fun DeviceDetailScreen(
     val totalLeft by viewModel.totalLeft.collectAsState(initial = 0)
     val currentOccupancy by viewModel.currentOccupancy.collectAsState(initial = 0)
     var showClearDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     if (showClearDialog) {
         AlertDialog(
@@ -72,7 +83,26 @@ fun DeviceDetailScreen(
         )
     }
 
+    if (showExportDialog) {
+        ExportFormatDialog(
+            onDismiss = { showExportDialog = false },
+            onExportCsv = {
+                showExportDialog = false
+                viewModel.exportEvents(context, ExportManager.ExportFormat.CSV) { result ->
+                    handleExportResult(result, context, snackbarHostState, scope)
+                }
+            },
+            onExportPdf = {
+                showExportDialog = false
+                viewModel.exportEvents(context, ExportManager.ExportFormat.PDF) { result ->
+                    handleExportResult(result, context, snackbarHostState, scope)
+                }
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(device?.name ?: "Cargando...") },
@@ -136,12 +166,21 @@ fun DeviceDetailScreen(
                         )
 
                         if (recentEvents.isNotEmpty()) {
-                            IconButton(onClick = { showClearDialog = true }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Borrar historial",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                            Row {
+                                IconButton(onClick = { showExportDialog = true }) {
+                                    Icon(
+                                        Icons.Default.FileDownload,
+                                        contentDescription = "Exportar eventos",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                IconButton(onClick = { showClearDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Borrar historial",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
@@ -648,5 +687,117 @@ fun DetailRow(
             fontWeight = FontWeight.Medium,
             color = valueColor
         )
+    }
+}
+
+/**
+ * Diálogo para seleccionar el formato de exportación.
+ */
+@Composable
+fun ExportFormatDialog(
+    onDismiss: () -> Unit,
+    onExportCsv: () -> Unit,
+    onExportPdf: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Exportar Eventos") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Selecciona el formato de exportación:")
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onExportCsv,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("CSV (Excel/Hojas de cálculo)")
+                }
+
+                OutlinedButton(
+                    onClick = onExportPdf,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.FileDownload,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("PDF (Documento)")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+/**
+ * Maneja el resultado de la exportación mostrando Snackbar apropiado.
+ */
+private fun handleExportResult(
+    result: ExportManager.ExportResult,
+    context: android.content.Context,
+    snackbarHostState: SnackbarHostState,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    when (result) {
+        is ExportManager.ExportResult.Success -> {
+            scope.launch {
+                val snackbarResult = snackbarHostState.showSnackbar(
+                    message = "Archivo exportado a Descargas",
+                    actionLabel = "ABRIR",
+                    duration = SnackbarDuration.Long
+                )
+
+                if (snackbarResult == SnackbarResult.ActionPerformed) {
+                    // Abrir el archivo con la app apropiada
+                    openFile(context, result.uri)
+                }
+            }
+        }
+        is ExportManager.ExportResult.Error -> {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = result.message,
+                    duration = SnackbarDuration.Long
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Abre un archivo mostrando un selector de apps del sistema.
+ */
+private fun openFile(context: android.content.Context, uri: Uri) {
+    try {
+        val mimeType = context.contentResolver.getType(uri) ?: "*/*"
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        // Crear chooser para que el usuario seleccione con qué app abrir
+        val chooserIntent = Intent.createChooser(intent, "Abrir con")
+        chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        context.startActivity(chooserIntent)
+    } catch (e: Exception) {
+        // Si no hay apps disponibles o hay error, falla silenciosamente
+        e.printStackTrace()
     }
 }

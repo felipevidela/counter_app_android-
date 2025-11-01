@@ -38,15 +38,16 @@ fun OccupancyChart(
     }
 
     Column(modifier = modifier) {
-        // Calcular rango dinámico del eje Y basado en el valor máximo
-        val maxY = data.maxValue.toFloat().coerceAtLeast(5f)  // Mínimo 5 para valores pequeños
+        // El data.maxValue ya incluye 20% de padding del ViewModel
+        // Usamos ese valor para el rango del gráfico
+        val chartMaxY = data.maxValue.toFloat().coerceAtLeast(5f)
         val yAxisSteps = 5
 
         // Construir datos para YCharts
         // Normalizar valores Y al rango 0-yAxisSteps para que coincidan con el eje Y
         val occupancyLine = Line(
             dataPoints = data.occupancyPoints.mapIndexed { index, point ->
-                val normalizedY = if (maxY > 0) (point.value / maxY) * yAxisSteps else 0f
+                val normalizedY = if (chartMaxY > 0) (point.value / chartMaxY) * yAxisSteps else 0f
                 Point(x = index.toFloat(), y = normalizedY)
             },
             lineStyle = LineStyle(color = occupancyColor),
@@ -105,8 +106,8 @@ fun OccupancyChart(
             .backgroundColor(Color.Transparent)
             .labelAndAxisLinePadding(20.dp)
             .labelData { value ->
-                // Escalar etiquetas: value va de 0-yAxisSteps, mapear a 0-maxY
-                val scaledValue = (value * maxY / yAxisSteps).toInt()
+                // Escalar etiquetas: value va de 0-yAxisSteps, mapear a 0-chartMaxY
+                val scaledValue = (value * chartMaxY / yAxisSteps).toInt()
                 "$scaledValue"
             }
             .build()

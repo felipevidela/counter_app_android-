@@ -13,6 +13,8 @@ Counter APP es una solución IoT completa que permite:
 - **Gestión de múltiples dispositivos** de conteo simulados
 - **Registro de eventos** con actualización automática en vivo
 - **Reportes y gráficos profesionales** con YCharts
+- **Sistema de alertas configurables** con notificaciones personalizadas
+- **Exportación de datos** a formatos PDF y CSV
 - **Notificaciones de desconexión** de dispositivos
 - **Autenticación segura** de usuarios
 
@@ -29,9 +31,9 @@ La aplicación aborda la necesidad de monitorear el aforo en espacios comerciale
 
 ### 1. **Sistema de Eventos Basado en SensorEvent**
 Arquitectura innovadora basada en eventos individuales:
-- **ENTRY**: Eventos de entrada de personas (grupos de 1-6 personas)
-- **EXIT**: Eventos de salida de personas
-- **DISCONNECTION**: Eventos de desconexión de dispositivos (5% probabilidad)
+- **ENTRY**: Eventos de entrada de personas (1 persona por evento - simulación realista de Arduino)
+- **EXIT**: Eventos de salida de personas (1 persona por evento)
+- **DISCONNECTION**: Eventos de desconexión de dispositivos (10% probabilidad)
 
 ```kotlin
 data class SensorEvent(
@@ -51,10 +53,11 @@ enum class EventType {
 
 ### 2. **Simulación Realista de Dispositivos IoT**
 Servicio de simulación que genera eventos automáticos con patrones realistas:
-- Grupos de tamaño variable (40% solo, 30% parejas, 20% grupos pequeños, 10% grupos grandes)
-- Balance inteligente entre entradas/salidas según ocupación actual
-- Eventos de desconexión aleatorios (5%)
-- Notificaciones push cuando se detecta desconexión
+- **Eventos individuales**: Simulación precisa de sensores Arduino (1 persona por evento)
+- **Balance inteligente** entre entradas/salidas según ocupación actual
+- **Eventos de desconexión** aleatorios (10% probabilidad)
+- **Notificaciones push** cuando se detecta desconexión
+- **Reset automático de IDs**: Al borrar datos, los contadores se reinician desde 1
 
 ### 3. **Gráficos Profesionales con YCharts**
 Visualización de datos de aforo con:
@@ -63,14 +66,33 @@ Visualización de datos de aforo con:
 - **Sombra bajo la línea**: Gradiente visual para mejor lectura
 - **Actualización en tiempo real**: Flow reactivo desde Room Database
 
-### 4. **Sistema de Notificaciones**
-Notificaciones push para eventos críticos:
-- Alertas de desconexión de dispositivos
-- Permiso runtime para Android 13+ (POST_NOTIFICATIONS)
-- Diálogo explicativo cuando se solicita permiso
-- Control total desde Settings
+### 4. **Sistema de Notificaciones y Alertas Configurables**
+Notificaciones push inteligentes para eventos críticos:
+- **Alerta de Desconexión**: Notificación automática cuando un dispositivo pierde conexión
+- **Alerta de Aforo Bajo**: Notifica cuando la ocupación cae bajo un umbral configurable (5-30%)
+- **Alerta de Aforo Alto**: Notifica cuando se acerca a capacidad máxima (70-100%)
+- **Alerta de Pico de Tráfico**: Detecta muchas entradas en corto tiempo (5-20 entradas en 5 min)
+- **Throttling inteligente**: Evita spam de notificaciones (máx. 1 alerta/tipo cada 10 min)
+- **Canales separados**: Alertas de dispositivos (alta prioridad) vs alertas de aforo (normal)
+- **Permiso runtime** para Android 13+ (POST_NOTIFICATIONS)
+- **Configuración total** desde Settings con sliders personalizables
 
-### 5. **Reportes y Estadísticas**
+### 5. **Exportación de Datos**
+Sistema completo de exportación de historial de eventos:
+- **Formato PDF**:
+  - Documento profesional con encabezado, tabla y pie de página
+  - Eventos codificados por color (verde/rojo/naranja)
+  - Incluye fecha de exportación y nombre del dispositivo
+  - Soporte multi-página para grandes volúmenes de datos
+- **Formato CSV**:
+  - Compatible con Excel y Google Sheets
+  - Columnas: Event ID, Device, Type, People Count, Date, Time, Timestamp
+  - Perfecto para análisis de datos externos
+- **Guardado en Downloads**: Uso de MediaStore (sin permisos en Android 10+)
+- **Selector de app**: Intent chooser para abrir archivos exportados
+- **Feedback visual**: Snackbar con botón "ABRIR" para acceso rápido
+
+### 6. **Reportes y Estadísticas**
 Pantalla de reportes con:
 - **Gráfico de aforo**: Visualización temporal de ocupación
 - **Estadísticas clave**:
@@ -194,6 +216,10 @@ sensorEventRepository.getEventsByDevice(deviceId, limit)
   - Timestamp preciso
   - Número de personas
   - Tipo de evento
+- **Exportación de datos**:
+  - Botón "Exportar Historial"
+  - Selector de formato (PDF/CSV)
+  - Descarga automática a carpeta Downloads
 
 ### 4. Device Registration
 - Registro de nuevos dispositivos
@@ -215,14 +241,21 @@ sensorEventRepository.getEventsByDevice(deviceId, limit)
   - Rangos de tiempo: Hoy, Últimos 7 días, Últimos 30 días
 
 ### 6. Settings
-- **Notificaciones**:
-  - Toggle para activar/desactivar
-  - Solicitud automática de permiso en Android 13+
-  - Diálogo explicativo cuando se necesita
-- **Intervalo de simulación**:
-  - Slider para ajustar frecuencia (1-30 segundos)
+- **Preferencias**:
+  - Toggle de notificaciones (solicitud automática de permiso en Android 13+)
+  - Slider de intervalo de simulación (1-30 segundos)
+- **Alertas Configurables**:
+  - **Alerta de Aforo Bajo**:
+    - Toggle on/off
+    - Slider de umbral (5-30% de capacidad)
+  - **Alerta de Aforo Alto**:
+    - Toggle on/off
+    - Slider de umbral (70-100% de capacidad)
+  - **Alerta de Pico de Tráfico**:
+    - Toggle on/off
+    - Slider de umbral (5-20 entradas en 5 minutos)
 - **Gestión de datos**:
-  - Borrar todas las lecturas
+  - Borrar todas las lecturas (con reset de IDs)
 - **Información de la app**
 - **Cerrar sesión**
 
@@ -261,17 +294,45 @@ LaunchedEffect(permissionState?.status) {
 
 ### NotificationHandler
 
+Sistema de notificaciones con 2 canales separados:
+
 ```kotlin
-// Crear notificación de desconexión
+// Canal de alertas de dispositivos (alta prioridad)
+private const val CHANNEL_ID_DEVICES = "device_alerts"
+
+// Canal de alertas de aforo (prioridad normal)
+private const val CHANNEL_ID_OCCUPANCY = "occupancy_alerts"
+
+// Notificación de desconexión
 fun showDisconnectionNotification(deviceName: String) {
-    val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_warning)
+    val notification = NotificationCompat.Builder(context, CHANNEL_ID_DEVICES)
         .setContentTitle("⚠️ Dispositivo desconectado")
-        .setContentText("El dispositivo \"$deviceName\" ha perdido conexión")
+        .setContentText(deviceName)
         .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setVibrate(longArrayOf(0, 250, 250, 250))
         .build()
 
-    notificationManager.notify(notificationId++, notification)
+    notificationManager.notify(NOTIFICATION_ID_DISCONNECTION, notification)
+}
+
+// Alerta de aforo bajo
+fun showLowOccupancyAlert(deviceName: String, currentOccupancy: Int, threshold: Int) {
+    val notification = NotificationCompat.Builder(context, CHANNEL_ID_OCCUPANCY)
+        .setContentTitle("📉 Aforo Bajo")
+        .setContentText("El aforo en '$deviceName' es bajo: $currentOccupancy personas")
+        .build()
+
+    notificationManager.notify(NOTIFICATION_ID_LOW_OCCUPANCY, notification)
+}
+
+// Alerta de aforo alto
+fun showHighOccupancyAlert(deviceName: String, currentOccupancy: Int, capacity: Int) {
+    // Similar con emoji 📈
+}
+
+// Alerta de pico de tráfico
+fun showTrafficPeakAlert(deviceName: String, entriesCount: Int) {
+    // Similar con emoji 🚶
 }
 ```
 
@@ -380,14 +441,17 @@ app/src/main/java/com/example/counter_app/
 ├── auth/
 │   └── LoginViewModel.kt
 ├── data/
-│   ├── AppDatabase.kt
+│   ├── AlertSettings.kt              # Entidad para configuración de alertas
+│   ├── AlertSettingsDao.kt           # DAO de alertas
+│   ├── AppDatabase.kt                # Base de datos (v5)
+│   ├── Converters.kt                 # Type converters para Room
 │   ├── Device.kt
 │   ├── DeviceDao.kt
 │   ├── DeviceRepository.kt
 │   ├── SensorEvent.kt
 │   ├── SensorEventDao.kt
 │   ├── SensorEventRepository.kt
-│   ├── SettingsRepository.kt
+│   ├── SettingsRepository.kt         # Repositorio de configuración
 │   ├── User.kt
 │   └── UserDao.kt
 ├── domain/
@@ -396,29 +460,211 @@ app/src/main/java/com/example/counter_app/
 │   └── ReportStats.kt
 ├── navigation/
 │   └── AppNavigation.kt
-├── security/
-│   └── NotificationHandler.kt
 ├── service/
 │   ├── DeviceSimulationService.kt
-│   └── EventBasedSimulationService.kt
+│   ├── EventBasedSimulationService.kt # Con lógica de alertas
+│   └── NotificationHandler.kt         # 4 tipos de notificaciones
 ├── ui/
 │   ├── DashboardScreen.kt
-│   ├── DeviceDetailScreen.kt
+│   ├── DeviceDetailScreen.kt          # Con exportación
 │   ├── DeviceRegistrationScreen.kt
 │   ├── LoginScreen.kt
 │   ├── RegistrationScreen.kt
 │   ├── ReportsScreen.kt
-│   ├── SettingsScreen.kt
+│   ├── SettingsScreen.kt              # Con alertas configurables
 │   └── components/
 │       └── OccupancyChart.kt
 ├── util/
-│   └── PasswordUtil.kt
+│   ├── CsvExporter.kt                 # Exportación a CSV
+│   ├── ExportManager.kt               # Gestor de archivos
+│   ├── PasswordUtil.kt
+│   └── PdfExporter.kt                 # Exportación a PDF
 └── viewmodel/
     ├── DashboardViewModel.kt
     ├── DeviceDetailViewModel.kt
     ├── DeviceRegistrationViewModel.kt
     ├── ReportsViewModel.kt
-    └── SettingsViewModel.kt
+    └── SettingsViewModel.kt           # Con gestión de alertas
+```
+
+## 🔔 Sistema de Alertas Configurables
+
+### Arquitectura de Alertas
+
+El sistema de alertas configurables permite al usuario personalizar completamente las notificaciones que desea recibir:
+
+```kotlin
+// Entidad de configuración persistida en Room Database
+@Entity(tableName = "alert_settings")
+data class AlertSettings(
+    @PrimaryKey val id: Long = 1,
+    val lowOccupancyEnabled: Boolean = false,
+    val lowOccupancyThreshold: Int = 5,       // 5% por defecto
+    val highOccupancyEnabled: Boolean = false,
+    val highOccupancyThreshold: Int = 90,     // 90% por defecto
+    val trafficPeakEnabled: Boolean = false,
+    val trafficPeakThreshold: Int = 10        // 10 entradas en 5 min
+)
+```
+
+### Lógica de Detección
+
+EventBasedSimulationService verifica las condiciones después de cada evento:
+
+```kotlin
+private suspend fun checkAlertConditions(device: Device, event: SensorEvent) {
+    val alertSettings = settingsRepository.getAlertSettings().first()
+    val currentOccupancy = sensorEventRepository.getCurrentOccupancy(device.id)
+
+    // 1. Verificar Alerta de Aforo Bajo
+    if (alertSettings.lowOccupancyEnabled) {
+        val occupancyPercentage = (currentOccupancy.toFloat() / device.capacity) * 100
+
+        if (occupancyPercentage < alertSettings.lowOccupancyThreshold) {
+            if (shouldSendAlert(device.id, "low_occupancy")) {
+                notificationHandler.showLowOccupancyAlert(...)
+                updateLastAlertTime(device.id, "low_occupancy")
+            }
+        }
+    }
+
+    // 2. Verificar Alerta de Aforo Alto
+    // 3. Verificar Alerta de Pico de Tráfico
+}
+```
+
+### Throttling de Notificaciones
+
+Para evitar spam de notificaciones:
+
+```kotlin
+// Mapa de últimas alertas por dispositivo y tipo
+private val lastAlertTimeMap = mutableMapOf<String, Long>()
+
+// Intervalo mínimo entre alertas del mismo tipo: 10 minutos
+private const val ALERT_THROTTLE_INTERVAL = 10 * 60 * 1000L
+
+private fun shouldSendAlert(deviceId: Long, alertType: String): Boolean {
+    val key = "${deviceId}_${alertType}"
+    val lastAlertTime = lastAlertTimeMap[key] ?: 0L
+    val currentTime = System.currentTimeMillis()
+    return (currentTime - lastAlertTime) >= ALERT_THROTTLE_INTERVAL
+}
+```
+
+### Tracking de Pico de Tráfico
+
+Ventana deslizante de 5 minutos:
+
+```kotlin
+// Mapa de entradas recientes por dispositivo
+private val recentEntriesMap = mutableMapOf<Long, MutableList<Long>>()
+
+// Agregar entrada al tracker
+if (event.eventType == EventType.ENTRY) {
+    val recentEntries = recentEntriesMap.getOrPut(device.id) { mutableListOf() }
+    recentEntries.add(event.timestamp)
+
+    // Limpiar entradas fuera de la ventana de 5 minutos
+    val windowStart = event.timestamp - TRAFFIC_PEAK_WINDOW
+    recentEntries.removeAll { it < windowStart }
+
+    // Verificar si supera el umbral
+    if (recentEntries.size >= alertSettings.trafficPeakThreshold) {
+        // Enviar alerta
+    }
+}
+```
+
+### Canales de Notificación
+
+Dos canales separados para mejor experiencia de usuario:
+
+| Canal | ID | Prioridad | Vibración | Uso |
+|-------|----|-----------|-----------|----|
+| Alertas de Dispositivos | `device_alerts` | HIGH | ✅ | Desconexiones |
+| Alertas de Aforo | `occupancy_alerts` | DEFAULT | ❌ | Aforo bajo/alto, tráfico |
+
+## 📤 Sistema de Exportación
+
+### Exportación a PDF
+
+Utiliza `android.graphics.pdf.PdfDocument` (sin dependencias externas):
+
+```kotlin
+class PdfExporter(private val context: Context) {
+    fun exportEvents(events: List<SensorEvent>, deviceName: String): Uri? {
+        val pdfDocument = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber).create()
+        val page = pdfDocument.startPage(pageInfo)
+
+        // Dibujar encabezado
+        canvas.drawText("Reporte de Eventos", x, y, titlePaint)
+        canvas.drawText("Dispositivo: $deviceName", x, y, subtitlePaint)
+
+        // Dibujar tabla de eventos con colores
+        events.forEach { event ->
+            val paint = when(event.eventType) {
+                EventType.ENTRY -> greenPaint
+                EventType.EXIT -> redPaint
+                EventType.DISCONNECTION -> orangePaint
+            }
+            // Dibujar fila...
+        }
+
+        pdfDocument.finishPage(page)
+
+        // Guardar usando MediaStore
+        return ExportManager.saveFile(pdfDocument, "events_$deviceName.pdf", "application/pdf")
+    }
+}
+```
+
+### Exportación a CSV
+
+Formato compatible con Excel y Google Sheets:
+
+```kotlin
+class CsvExporter {
+    fun exportEvents(events: List<SensorEvent>, deviceName: String): Uri? {
+        val csvContent = buildString {
+            // Header
+            appendLine("Event ID,Device Name,Event Type,People Count,Date,Time,Timestamp")
+
+            // Datos
+            events.forEach { event ->
+                appendLine("${event.id},$deviceName,${event.eventType}," +
+                          "${event.peopleCount},$date,$time,${event.timestamp}")
+            }
+        }
+
+        return ExportManager.saveFile(csvContent, "events_$deviceName.csv", "text/csv")
+    }
+}
+```
+
+### Guardado con MediaStore (Android 10+)
+
+Sin permisos de storage necesarios:
+
+```kotlin
+object ExportManager {
+    fun saveFile(content: Any, fileName: String, mimeType: String): Uri? {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+
+        val uri = context.contentResolver.insert(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values
+        )
+
+        // Escribir contenido...
+        return uri
+    }
+}
 ```
 
 ## 🔄 Roadmap
@@ -429,11 +675,15 @@ app/src/main/java/com/example/counter_app/
 - [x] Eje Y dinámico en gráficos
 - [x] Permiso runtime para Android 13+
 - [x] Estadísticas avanzadas (tiempo promedio de visita)
-- [ ] Exportación de reportes a PDF/CSV
+- [x] **Exportación de reportes a PDF/CSV** ✨ Nuevo
+- [x] **Sistema de alertas configurables** ✨ Nuevo
+- [x] **Simulación realista Arduino (1 persona/evento)** ✨ Nuevo
+- [x] **Reset automático de IDs** ✨ Nuevo
 - [ ] Dashboard web complementario
 - [ ] Integración con dispositivos IoT reales
-- [ ] Sistema de alertas configurables
 - [ ] Predicción de aforo con ML
+- [ ] Análisis de patrones de comportamiento
+- [ ] Sincronización cloud multi-dispositivo
 
 ## 👥 Contribución
 

@@ -105,4 +105,13 @@ interface SensorEventDao {
      */
     @Query("DELETE FROM sensor_events WHERE timestamp < :beforeTimestamp")
     suspend fun deleteOldEvents(beforeTimestamp: Long)
+
+    /**
+     * Resetea el autoincrement de IDs de la tabla sensor_events.
+     *
+     * Esto hace que el próximo evento insertado tenga ID = 1.
+     * IMPORTANTE: Solo debe ejecutarse después de eliminar todos los eventos.
+     */
+    @Query("DELETE FROM sqlite_sequence WHERE name = 'sensor_events'")
+    suspend fun resetAutoIncrement()
 }

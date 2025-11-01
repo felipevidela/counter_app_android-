@@ -1,9 +1,12 @@
 package com.example.counter_app.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.counter_app.data.*
+import com.example.counter_app.util.ExportManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -89,6 +92,41 @@ class DeviceDetailViewModel(application: Application) : AndroidViewModel(applica
             _currentDeviceId.value?.let { deviceId ->
                 sensorEventRepository.clearEvents(deviceId)
             }
+        }
+    }
+
+    /**
+     * Exporta los eventos del dispositivo actual al formato especificado.
+     *
+     * @param context Contexto de la aplicación
+     * @param format Formato de exportación (CSV o PDF)
+     * @param onResult Callback con el resultado de la exportación
+     */
+    fun exportEvents(
+        context: Context,
+        format: ExportManager.ExportFormat,
+        onResult: (ExportManager.ExportResult) -> Unit
+    ) {
+        viewModelScope.launch {
+            val deviceId = _currentDeviceId.value
+            if (deviceId == null) {
+                onResult(ExportManager.ExportResult.Error("No hay dispositivo seleccionado"))
+                return@launch
+            }
+
+            // Obtener eventos y nombre del dispositivo
+            val events = recentEvents.first()
+            val deviceName = device.first()?.name ?: "Dispositivo"
+
+            // Realizar exportación
+            val result = ExportManager.exportEvents(
+                context = context,
+                events = events,
+                deviceName = deviceName,
+                format = format
+            )
+
+            onResult(result)
         }
     }
 }

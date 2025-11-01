@@ -8,10 +8,18 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Location permissions required for Bluetooth scanning on Android 6+.
+         On Android 12+, both COARSE and FINE must be requested together. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Permiso para mostrar notificaciones (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Permiso para guardar archivos (Android 8-9, no necesario en Android 10+) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <application
         android:allowBackup="true"
