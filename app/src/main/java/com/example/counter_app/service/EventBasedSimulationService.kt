@@ -85,8 +85,8 @@ class EventBasedSimulationService(private val application: Application) {
         val devices = deviceRepository.getAllDevices().first()
 
         devices.filter { it.isActive }.forEach { device ->
-            // Probabilidad de que ocurra un evento en este ciclo (70%)
-            if (Random.nextInt(100) < 70) {
+            // Probabilidad de que ocurra un evento en este ciclo (95% - aumentado para facilitar testing de alertas)
+            if (Random.nextInt(100) < 95) {
                 generateEventForDevice(device)
             }
         }
@@ -153,10 +153,11 @@ class EventBasedSimulationService(private val application: Application) {
     /**
      * Decide si el próximo evento será entrada o salida.
      *
-     * Lógica:
-     * - Si está vacío: solo entradas
-     * - Si está lleno/cerca: más salidas
-     * - Normal: 60% entradas, 40% salidas (mall atrae gente)
+     * Lógica modificada para facilitar testing de alertas:
+     * - Crea patrones oscilantes entre ocupación baja y alta
+     * - Cuando está alto (>75%): forzar bajada para trigger low occupancy alerts
+     * - Cuando está bajo (<25%): forzar subida para trigger high occupancy + traffic peak alerts
+     * - En medio: favorecer entradas para alcanzar umbrales altos
      */
     private fun decideEventType(currentOccupancy: Int, capacity: Int): EventType {
         if (currentOccupancy == 0) {
@@ -166,17 +167,17 @@ class EventBasedSimulationService(private val application: Application) {
         val occupancyPercentage = currentOccupancy.toFloat() / capacity.toFloat()
 
         return when {
-            // Si está sobre el 90%, favorecer salidas
-            occupancyPercentage > 0.9f -> {
-                if (Random.nextInt(100) < 70) EventType.EXIT else EventType.ENTRY
+            // Alta ocupación (>75%): Bajar rápidamente para trigger alertas de aforo bajo
+            occupancyPercentage > 0.75f -> {
+                if (Random.nextInt(100) < 80) EventType.EXIT else EventType.ENTRY
             }
-            // Si está muy vacío, favorecer entradas
-            occupancyPercentage < 0.2f -> {
-                if (Random.nextInt(100) < 80) EventType.ENTRY else EventType.EXIT
+            // Baja ocupación (<25%): Subir rápidamente para trigger alertas de aforo alto y peak
+            occupancyPercentage < 0.25f -> {
+                if (Random.nextInt(100) < 85) EventType.ENTRY else EventType.EXIT
             }
-            // Normal: 60% entradas, 40% salidas
+            // Ocupación media: Favorecer entradas para alcanzar umbrales altos
             else -> {
-                if (Random.nextInt(100) < 60) EventType.ENTRY else EventType.EXIT
+                if (Random.nextInt(100) < 70) EventType.ENTRY else EventType.EXIT
             }
         }
     }
