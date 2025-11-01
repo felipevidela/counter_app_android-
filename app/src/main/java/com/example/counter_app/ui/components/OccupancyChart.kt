@@ -1,20 +1,11 @@
 package com.example.counter_app.ui.components
 
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
@@ -40,12 +31,6 @@ fun OccupancyChart(
     // Color para la línea de aforo (azul/verde profesional)
     val occupancyColor = Color(0xFF2196F3)  // Azul Material
 
-    // Estado de zoom (solo zoom in: 1.0f = 100%, 3.0f = 300%)
-    var zoomLevel by remember { mutableStateOf(1.0f) }
-    val scrollState = rememberScrollState()
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-
     if (!data.hasData) {
         // Estado vacío
         EmptyChartState(modifier)
@@ -53,26 +38,16 @@ fun OccupancyChart(
     }
 
     Column(modifier = modifier) {
-        // Controles de zoom (solo zoom in)
-        ZoomControls(
-            zoomLevel = zoomLevel,
-            onZoomIn = {
-                if (zoomLevel < 3.0f) {
-                    zoomLevel = (zoomLevel + 0.5f).coerceAtMost(3.0f)
-                }
-            },
-            onZoomOut = {
-                if (zoomLevel > 1.0f) {
-                    zoomLevel = (zoomLevel - 0.5f).coerceAtLeast(1.0f)
-                }
-            }
-        )
+        // Calcular rango dinámico del eje Y basado en el valor máximo
+        val maxY = data.maxValue.toFloat().coerceAtLeast(5f)  // Mínimo 5 para valores pequeños
+        val yAxisSteps = 5
 
-        Spacer(modifier = Modifier.height(8.dp))
         // Construir datos para YCharts
+        // Normalizar valores Y al rango 0-yAxisSteps para que coincidan con el eje Y
         val occupancyLine = Line(
             dataPoints = data.occupancyPoints.mapIndexed { index, point ->
-                Point(x = index.toFloat(), y = point.value)
+                val normalizedY = if (maxY > 0) (point.value / maxY) * yAxisSteps else 0f
+                Point(x = index.toFloat(), y = normalizedY)
             },
             lineStyle = LineStyle(color = occupancyColor),
             intersectionPoint = IntersectionPoint(
@@ -95,9 +70,9 @@ fun OccupancyChart(
             selectionHighlightPopUp = SelectionHighlightPopUp(
                 popUpLabel = { x, y ->
                     // Tooltip personalizado: "HH:mm\nAforo: X personas"
-                    val aforo = y.toInt()
                     val pointIndex = x.toInt()
                     val point = data.occupancyPoints.getOrNull(pointIndex)
+                    val aforo = point?.value?.toInt() ?: 0  // Usar valor original, no normalizado
                     val hora = point?.let { formatTimestamp(it.timestamp) } ?: ""
                     "$hora\nAforo: $aforo personas"
                 }
@@ -124,13 +99,15 @@ fun OccupancyChart(
             .labelAndAxisLinePadding(15.dp)
             .build()
 
-        // Eje Y (aforo - número de personas)
+        // Eje Y (aforo - número de personas) - dinámico según datos
         val yAxisData = AxisData.Builder()
-            .steps(5)
+            .steps(yAxisSteps)
             .backgroundColor(Color.Transparent)
             .labelAndAxisLinePadding(20.dp)
             .labelData { value ->
-                "${value.toInt()}"
+                // Escalar etiquetas: value va de 0-yAxisSteps, mapear a 0-maxY
+                val scaledValue = (value * maxY / yAxisSteps).toInt()
+                "$scaledValue"
             }
             .build()
 
@@ -145,32 +122,13 @@ fun OccupancyChart(
             backgroundColor = MaterialTheme.colorScheme.surface
         )
 
-        // Renderizar el gráfico con zoom y scroll
-        Box(
+        // Renderizar el gráfico
+        LineChart(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (zoomLevel > 1.0f) {
-                        Modifier.horizontalScroll(scrollState)
-                    } else {
-                        Modifier
-                    }
-                )
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, _, zoom, _ ->
-                        // Pinch-to-zoom (solo zoom in, mínimo 100%)
-                        val newZoom = (zoomLevel * zoom).coerceIn(1.0f, 3.0f)
-                        zoomLevel = newZoom
-                    }
-                }
-        ) {
-            LineChart(
-                modifier = Modifier
-                    .width(screenWidth * zoomLevel)
-                    .height(300.dp),
-                lineChartData = lineChartData
-            )
-        }
+                .height(300.dp),
+            lineChartData = lineChartData
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -205,54 +163,6 @@ private fun EmptyChartState(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@Composable
-private fun ZoomControls(
-    zoomLevel: Float,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "Zoom: ${(zoomLevel * 100).toInt()}%",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Botón Zoom Out (-) - solo habilitado si zoom > 100%
-        FilledTonalIconButton(
-            onClick = onZoomOut,
-            enabled = zoomLevel > 1.0f,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Remove,
-                contentDescription = "Reducir zoom",
-                modifier = Modifier.size(16.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        // Botón Zoom In (+)
-        FilledTonalIconButton(
-            onClick = onZoomIn,
-            enabled = zoomLevel < 3.0f,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Aumentar zoom",
-                modifier = Modifier.size(16.dp)
-            )
-        }
     }
 }
 

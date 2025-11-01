@@ -53,5 +53,8 @@ enum class EventType {
     ENTRY,
 
     /** Evento de salida: sensor de salida detectó personas saliendo */
-    EXIT
+    EXIT,
+
+    /** Evento de desconexión: se perdió la conexión con el dispositivo */
+    DISCONNECTION
 }

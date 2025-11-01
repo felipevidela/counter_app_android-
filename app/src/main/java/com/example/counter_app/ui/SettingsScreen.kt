@@ -1,5 +1,7 @@
 package com.example.counter_app.ui
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
@@ -10,8 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.counter_app.viewmodel.SettingsViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
@@ -20,6 +26,23 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showPermissionRationaleDialog by remember { mutableStateOf(false) }
+
+    // Permission state para Android 13+
+    val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+        null
+    }
+
+    // Observar cuando se conceda el permiso y activar notificaciones
+    LaunchedEffect(notificationPermissionState?.status) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (notificationPermissionState?.status?.isGranted == true && !settings.notificationsEnabled) {
+                viewModel.toggleNotifications(true)
+            }
+        }
+    }
 
     if (showClearDataDialog) {
         AlertDialog(
@@ -68,6 +91,35 @@ fun SettingsScreen(
         )
     }
 
+    // Diálogo para explicar por qué se necesita el permiso
+    if (showPermissionRationaleDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationaleDialog = false },
+            title = { Text("Permiso de notificaciones necesario") },
+            text = { Text("Para recibir alertas de desconexión de dispositivos, necesitamos tu permiso para enviar notificaciones. Esto te ayudará a estar informado de problemas con los sensores en tiempo real.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionRationaleDialog = false
+                        notificationPermissionState?.launchPermissionRequest()
+                    }
+                ) {
+                    Text("Conceder permiso")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPermissionRationaleDialog = false
+                        viewModel.toggleNotifications(false)
+                    }
+                ) {
+                    Text("No permitir")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -109,7 +161,37 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = settings.notificationsEnabled,
-                            onCheckedChange = { viewModel.toggleNotifications(it) }
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    // Usuario quiere activar notificaciones
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        // Android 13+: verificar/solicitar permiso
+                                        val permissionState = notificationPermissionState
+                                        if (permissionState != null) {
+                                            when {
+                                                permissionState.status.isGranted -> {
+                                                    // Permiso ya concedido, activar notificaciones
+                                                    viewModel.toggleNotifications(true)
+                                                }
+                                                permissionState.status.shouldShowRationale -> {
+                                                    // Mostrar explicación y luego pedir permiso
+                                                    showPermissionRationaleDialog = true
+                                                }
+                                                else -> {
+                                                    // Primera vez, solicitar directamente
+                                                    permissionState.launchPermissionRequest()
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Android < 13: no se necesita permiso runtime
+                                        viewModel.toggleNotifications(true)
+                                    }
+                                } else {
+                                    // Usuario quiere desactivar notificaciones
+                                    viewModel.toggleNotifications(false)
+                                }
+                            }
                         )
                     }
                 }

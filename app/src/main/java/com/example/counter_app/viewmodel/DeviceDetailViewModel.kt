@@ -9,12 +9,12 @@ import kotlinx.coroutines.launch
 
 class DeviceDetailViewModel(application: Application) : AndroidViewModel(application) {
     private val deviceRepository: DeviceRepository
-    private val sensorReadingRepository: SensorReadingRepository
+    private val sensorEventRepository: SensorEventRepository
 
     init {
         val database = AppDatabase.getDatabase(application)
         deviceRepository = DeviceRepository(database.deviceDao())
-        sensorReadingRepository = SensorReadingRepository(database.sensorReadingDao())
+        sensorEventRepository = SensorEventRepository(database.sensorEventDao())
     }
 
     private val _currentDeviceId = MutableStateFlow<Long?>(null)
@@ -27,20 +27,49 @@ class DeviceDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    val latestReading: Flow<SensorReading?> = _currentDeviceId.flatMapLatest { deviceId ->
+    val latestEvent: Flow<SensorEvent?> = _currentDeviceId.flatMapLatest { deviceId ->
         if (deviceId != null) {
-            sensorReadingRepository.getLatestReading(deviceId)
+            sensorEventRepository.getLatestEvent(deviceId)
         } else {
             flowOf(null)
         }
     }
 
-    val recentReadings: Flow<List<SensorReading>> = _currentDeviceId.flatMapLatest { deviceId ->
+    val recentEvents: Flow<List<SensorEvent>> = _currentDeviceId.flatMapLatest { deviceId ->
         if (deviceId != null) {
-            sensorReadingRepository.getReadingsByDevice(deviceId, limit = 50)
+            sensorEventRepository.getEventsByDevice(deviceId, limit = 50)
         } else {
             flowOf(emptyList())
         }
+    }
+
+    // Calculate total entered based on events
+    val totalEntered: Flow<Int> = _currentDeviceId.flatMapLatest { deviceId ->
+        if (deviceId != null) {
+            recentEvents.map { events ->
+                events.filter { it.eventType == EventType.ENTRY }
+                    .sumOf { it.peopleCount }
+            }
+        } else {
+            flowOf(0)
+        }
+    }
+
+    // Calculate total left based on events
+    val totalLeft: Flow<Int> = _currentDeviceId.flatMapLatest { deviceId ->
+        if (deviceId != null) {
+            recentEvents.map { events ->
+                events.filter { it.eventType == EventType.EXIT }
+                    .sumOf { it.peopleCount }
+            }
+        } else {
+            flowOf(0)
+        }
+    }
+
+    // Calculate current occupancy (entered - left)
+    val currentOccupancy: Flow<Int> = combine(totalEntered, totalLeft) { entered, left ->
+        (entered - left).coerceAtLeast(0)
     }
 
     fun setDeviceId(deviceId: Long) {
@@ -55,10 +84,10 @@ class DeviceDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun clearReadings() {
+    fun clearEvents() {
         viewModelScope.launch {
             _currentDeviceId.value?.let { deviceId ->
-                sensorReadingRepository.deleteReadingsByDevice(deviceId)
+                sensorEventRepository.clearEvents(deviceId)
             }
         }
     }

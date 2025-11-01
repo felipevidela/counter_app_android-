@@ -23,7 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.counter_app.data.Device
-import com.example.counter_app.data.SensorReading
+import com.example.counter_app.data.SensorEvent
+import com.example.counter_app.data.EventType
 import com.example.counter_app.ui.components.BreadcrumbNavigation
 import com.example.counter_app.viewmodel.DeviceDetailViewModel
 import java.text.SimpleDateFormat
@@ -41,19 +42,22 @@ fun DeviceDetailScreen(
     }
 
     val device by viewModel.device.collectAsState(initial = null)
-    val latestReading by viewModel.latestReading.collectAsState(initial = null)
-    val recentReadings by viewModel.recentReadings.collectAsState(initial = emptyList())
+    val latestEvent by viewModel.latestEvent.collectAsState(initial = null)
+    val recentEvents by viewModel.recentEvents.collectAsState(initial = emptyList())
+    val totalEntered by viewModel.totalEntered.collectAsState(initial = 0)
+    val totalLeft by viewModel.totalLeft.collectAsState(initial = 0)
+    val currentOccupancy by viewModel.currentOccupancy.collectAsState(initial = 0)
     var showClearDialog by remember { mutableStateOf(false) }
 
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text("Borrar historial") },
-            text = { Text("¿Estás seguro de que deseas eliminar todo el historial de lecturas de este dispositivo?") },
+            text = { Text("¿Estás seguro de que deseas eliminar todo el historial de eventos de este dispositivo?") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.clearReadings()
+                        viewModel.clearEvents()
                         showClearDialog = false
                     }
                 ) {
@@ -110,7 +114,13 @@ fun DeviceDetailScreen(
                 }
 
                 item {
-                    DeviceInfoCard(device!!, latestReading, viewModel::toggleDeviceStatus)
+                    DeviceInfoCard(
+                        device = device!!,
+                        totalEntered = totalEntered,
+                        totalLeft = totalLeft,
+                        currentOccupancy = currentOccupancy,
+                        onToggleStatus = viewModel::toggleDeviceStatus
+                    )
                 }
 
                 item {
@@ -125,7 +135,7 @@ fun DeviceDetailScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        if (recentReadings.isNotEmpty()) {
+                        if (recentEvents.isNotEmpty()) {
                             IconButton(onClick = { showClearDialog = true }) {
                                 Icon(
                                     Icons.Default.Delete,
@@ -137,7 +147,7 @@ fun DeviceDetailScreen(
                     }
                 }
 
-                if (recentReadings.isEmpty()) {
+                if (recentEvents.isEmpty()) {
                     item {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Box(
@@ -155,8 +165,8 @@ fun DeviceDetailScreen(
                         }
                     }
                 } else {
-                    items(recentReadings, key = { it.id }) { reading ->
-                        ReadingCard(reading)
+                    items(recentEvents, key = { it.id }) { event ->
+                        EventCard(event)
                     }
                 }
             }
@@ -167,15 +177,13 @@ fun DeviceDetailScreen(
 @Composable
 fun DeviceInfoCard(
     device: Device,
-    latestReading: SensorReading?,
+    totalEntered: Int,
+    totalLeft: Int,
+    currentOccupancy: Int,
     onToggleStatus: (Boolean) -> Unit
 ) {
-    val currentOccupancy = latestReading?.let { it.entered - it.left } ?: 0
-    val occupancyPercentage = latestReading?.let {
-        (currentOccupancy.toFloat() / it.capacity.toFloat()).coerceIn(0f, 1f)
-    } ?: 0f
-
-    val isOverCapacity = currentOccupancy > (latestReading?.capacity ?: Int.MAX_VALUE)
+    val occupancyPercentage = (currentOccupancy.toFloat() / device.capacity.toFloat()).coerceIn(0f, 1f)
+    val isOverCapacity = currentOccupancy > device.capacity
     val isNearCapacity = occupancyPercentage >= 0.9f
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -267,7 +275,7 @@ fun DeviceInfoCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            latestReading?.entered?.toString() ?: "-",
+                            totalEntered.toString(),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (device.isActive) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -307,7 +315,7 @@ fun DeviceInfoCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            latestReading?.left?.toString() ?: "-",
+                            totalLeft.toString(),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (device.isActive) Color(0xFFF44336) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -321,87 +329,85 @@ fun DeviceInfoCard(
                 }
             }
 
-            if (latestReading != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider()
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Occupancy alert
-                if (isNearCapacity || isOverCapacity) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isOverCapacity)
-                                MaterialTheme.colorScheme.errorContainer
-                            else
-                                Color(0xFFFFEB3B).copy(alpha = 0.3f)
-                        )
+            // Occupancy alert
+            if (isNearCapacity || isOverCapacity) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isOverCapacity)
+                            MaterialTheme.colorScheme.errorContainer
+                        else
+                            Color(0xFFFFEB3B).copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = if (isOverCapacity)
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    Color(0xFFF57C00)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = if (isOverCapacity)
-                                    "¡Capacidad excedida! $currentOccupancy de ${latestReading.capacity}"
-                                else
-                                    "Cerca del límite de capacidad",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isOverCapacity)
+                                MaterialTheme.colorScheme.error
+                            else
+                                Color(0xFFF57C00)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (isOverCapacity)
+                                "¡Capacidad excedida! $currentOccupancy de ${device.capacity}"
+                            else
+                                "Cerca del límite de capacidad",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
-                // Occupancy bar
+            // Occupancy bar
+            Text(
+                "Aforo Actual",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    "Aforo Actual",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    "$currentOccupancy personas",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "$currentOccupancy personas",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "de ${latestReading.capacity}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LinearProgressIndicator(
-                    progress = { occupancyPercentage },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(12.dp),
-                    color = when {
-                        isOverCapacity -> MaterialTheme.colorScheme.error
-                        isNearCapacity -> Color(0xFFFFA726)
-                        else -> MaterialTheme.colorScheme.primary
-                    },
+                Text(
+                    "de ${device.capacity}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LinearProgressIndicator(
+                progress = { occupancyPercentage },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp),
+                color = when {
+                    isOverCapacity -> MaterialTheme.colorScheme.error
+                    isNearCapacity -> Color(0xFFFFA726)
+                    else -> MaterialTheme.colorScheme.primary
+                },
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
             Divider()
@@ -487,14 +493,37 @@ fun StatCard(label: String, value: String, backgroundColor: androidx.compose.ui.
 }
 
 @Composable
-fun ReadingCard(reading: SensorReading) {
+fun EventCard(event: SensorEvent) {
     var expanded by remember { mutableStateOf(false) }
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-    val dateString = dateFormat.format(Date(reading.timestamp))
     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    val timeString = timeFormat.format(Date(reading.timestamp))
+    val timeString = timeFormat.format(Date(event.timestamp))
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val dateString = dateFormat.format(Date(event.timestamp))
     val fullDateFormat = SimpleDateFormat("EEEE, dd 'de' MMMM 'de' yyyy", Locale("es", "ES"))
-    val fullDateString = fullDateFormat.format(Date(reading.timestamp))
+    val fullDateString = fullDateFormat.format(Date(event.timestamp))
+
+    val isEntry = event.eventType == EventType.ENTRY
+    val isDisconnection = event.eventType == EventType.DISCONNECTION
+
+    val eventColor = when (event.eventType) {
+        EventType.ENTRY -> Color(0xFF4CAF50)  // Verde para entrada
+        EventType.EXIT -> Color(0xFFF44336)   // Rojo para salida
+        EventType.DISCONNECTION -> Color(0xFFF57C00)  // Naranja para desconexión
+    }
+
+    val eventIcon = when (event.eventType) {
+        EventType.ENTRY -> Icons.Default.Login
+        EventType.EXIT -> Icons.Default.Logout
+        EventType.DISCONNECTION -> Icons.Default.Warning
+    }
+
+    val eventText = when (event.eventType) {
+        EventType.ENTRY -> "Entrada"
+        EventType.EXIT -> "Salida"
+        EventType.DISCONNECTION -> "Desconexión detectada"
+    }
+
+    val peopleText = if (event.peopleCount == 1) "persona" else "personas"
 
     OutlinedCard(
         modifier = Modifier
@@ -509,35 +538,44 @@ fun ReadingCard(reading: SensorReading) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = dateString,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Entraron: ${reading.entered} | Salieron: ${reading.left}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = "${reading.entered - reading.left}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (expanded) "Mostrar menos" else "Mostrar más",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        imageVector = eventIcon,
+                        contentDescription = eventText,
+                        tint = eventColor,
+                        modifier = Modifier.size(32.dp)
                     )
+                    Column {
+                        Text(
+                            text = if (isDisconnection) {
+                                eventText
+                            } else {
+                                "${event.peopleCount} $peopleText"
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isDisconnection) {
+                                timeString
+                            } else {
+                                "$eventText • $timeString"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Mostrar menos" else "Mostrar más",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             if (expanded) {
@@ -557,49 +595,29 @@ fun ReadingCard(reading: SensorReading) {
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Fecha completa
                     DetailRow(label = "Fecha", value = fullDateString)
                     DetailRow(label = "Hora exacta", value = timeString)
 
                     Divider()
 
-                    // Sensores
-                    DetailRow(label = "Sensor de entrada", value = "${reading.entered} detecciones")
-                    DetailRow(label = "Sensor de salida", value = "${reading.left} detecciones")
+                    DetailRow(label = "Tipo de evento", value = eventText)
 
-                    Divider()
-
-                    // Cálculos
-                    val currentOccupancy = reading.entered - reading.left
-                    val occupancyPercentage = (currentOccupancy.toFloat() / reading.capacity.toFloat() * 100).toInt()
-
-                    DetailRow(label = "Aforo actual", value = "$currentOccupancy personas")
-                    DetailRow(label = "Capacidad máxima", value = "${reading.capacity} personas")
-                    DetailRow(label = "Porcentaje ocupación", value = "$occupancyPercentage%")
-
-                    // Estado
-                    val status = when {
-                        currentOccupancy > reading.capacity -> "⚠️ Sobrecapacidad"
-                        occupancyPercentage >= 90 -> "⚠️ Cerca del límite"
-                        occupancyPercentage >= 70 -> "✓ Ocupación alta"
-                        occupancyPercentage >= 40 -> "✓ Ocupación media"
-                        else -> "✓ Ocupación baja"
+                    if (!isDisconnection) {
+                        DetailRow(
+                            label = "Personas detectadas",
+                            value = "${event.peopleCount} $peopleText"
+                        )
+                    } else {
+                        DetailRow(
+                            label = "Estado",
+                            value = "Conexión perdida con el dispositivo"
+                        )
                     }
-
-                    DetailRow(
-                        label = "Estado",
-                        value = status,
-                        valueColor = when {
-                            currentOccupancy > reading.capacity -> MaterialTheme.colorScheme.error
-                            occupancyPercentage >= 90 -> Color(0xFFF57C00)
-                            else -> MaterialTheme.colorScheme.primary
-                        }
-                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        "ID de lectura: #${reading.id}",
+                        "ID de evento: #${event.id}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

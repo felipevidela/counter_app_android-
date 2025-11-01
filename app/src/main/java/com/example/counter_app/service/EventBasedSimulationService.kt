@@ -16,16 +16,19 @@ import kotlin.random.Random
  * ## Eventos Generados:
  * - ENTRY: Persona o grupo detectado entrando al local
  * - EXIT: Persona o grupo detectado saliendo del local
+ * - DISCONNECTION: Pérdida de conexión con el dispositivo (1% probabilidad)
  *
  * ## Patrones Simulados:
  * - Grupos de tamaño variable (1-6 personas)
  * - Frecuencia ajustable (más eventos en horas pico)
  * - Balance realista entre entradas y salidas
+ * - Desconexiones aleatorias poco frecuentes
  */
 class EventBasedSimulationService(private val application: Application) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val deviceRepository: DeviceRepository
     private val sensorEventRepository: SensorEventRepository
+    private val notificationHandler: NotificationHandler
 
     private var simulationJob: Job? = null
     private var isRunning = false
@@ -34,6 +37,7 @@ class EventBasedSimulationService(private val application: Application) {
         val database = AppDatabase.getDatabase(application)
         deviceRepository = DeviceRepository(database.deviceDao())
         sensorEventRepository = SensorEventRepository(database.sensorEventDao())
+        notificationHandler = NotificationHandler(application)
     }
 
     /**
@@ -78,6 +82,22 @@ class EventBasedSimulationService(private val application: Application) {
     }
 
     private suspend fun generateEventForDevice(device: Device) {
+        // 5% de probabilidad de evento de desconexión
+        if (Random.nextInt(100) < 5) {
+            // Crear evento de desconexión
+            val disconnectionEvent = SensorEvent(
+                deviceId = device.id,
+                eventType = EventType.DISCONNECTION,
+                peopleCount = 0, // No aplicable para desconexiones
+                timestamp = System.currentTimeMillis()
+            )
+            sensorEventRepository.insertEvent(disconnectionEvent)
+
+            // Mostrar notificación de desconexión
+            notificationHandler.showDisconnectionNotification(device.name)
+            return
+        }
+
         // Obtener ocupación actual
         val currentOccupancy = sensorEventRepository.getCurrentOccupancy(device.id)
 

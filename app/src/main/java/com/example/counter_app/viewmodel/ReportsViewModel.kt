@@ -113,6 +113,9 @@ class ReportsViewModel(application: Application) : AndroidViewModel(application)
                 EventType.EXIT -> {
                     currentOccupancy -= event.peopleCount
                 }
+                EventType.DISCONNECTION -> {
+                    // Desconexión no afecta el conteo, es solo informativo
+                }
             }
 
             // El aforo nunca puede ser negativo

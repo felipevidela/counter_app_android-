@@ -4,80 +4,143 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpack-compose&logoColor=white)](https://developer.android.com/jetpack/compose)
 
-Una aplicación móvil Android para monitoreo en tiempo real de conteo de personas mediante comunicación Bluetooth Low Energy (BLE), diseñada para entornos IoT con enfoque en seguridad y eficiencia.
+Una aplicación móvil Android para monitoreo en tiempo real de aforo (ocupación) mediante dispositivos IoT simulados, diseñada para gestión de espacios comerciales con enfoque en análisis de datos y visualización profesional.
 
 ## 📋 Descripción del Proyecto
 
 Counter APP es una solución IoT completa que permite:
 - **Monitoreo en tiempo real** del flujo de personas (entradas/salidas)
-- **Comunicación Bluetooth BLE** con dispositivos de conteo
-- **Registro histórico** de eventos con actualización en vivo
-- **Control remoto** mediante interfaz de activación
+- **Gestión de múltiples dispositivos** de conteo simulados
+- **Registro de eventos** con actualización automática en vivo
+- **Reportes y gráficos profesionales** con YCharts
+- **Notificaciones de desconexión** de dispositivos
 - **Autenticación segura** de usuarios
 
 ### 🎯 Problema que Resuelve
 
-La aplicación aborda la necesidad de monitorear el aforo en espacios cerrados (tiendas, oficinas, eventos) de manera:
-- **No intrusiva**: Sensores BLE automáticos
-- **En tiempo real**: Actualizaciones instantáneas sin necesidad de refrescar
-- **Persistente**: Los datos continúan actualizándose en background
-- **Segura**: Autenticación de usuarios y consideraciones de seguridad IoT
+La aplicación aborda la necesidad de monitorear el aforo en espacios comerciales (tiendas, malls, eventos) de manera:
+- **Automatizada**: Sensores simulados que generan eventos realistas
+- **En tiempo real**: Actualizaciones instantáneas mediante Flow reactivos
+- **Analítica**: Estadísticas y gráficos de ocupación, tiempo promedio de visita, picos de aforo
+- **Escalable**: Soporte para múltiples dispositivos simultáneos
+- **Segura**: Autenticación de usuarios y notificaciones de eventos críticos
 
-## 🚀 Características Innovadoras
+## 🚀 Características Principales
 
-### 1. **Hot Flows Architecture**
-Implementación innovadora usando **StateFlow** para mantener el servicio Bluetooth corriendo continuamente en background:
-- Los datos se actualizan **en tiempo real** sin necesidad de observadores activos
-- La navegación entre pantallas **no interrumpe** el conteo
-- Los eventos aparecen **instantáneamente** en el registro
+### 1. **Sistema de Eventos Basado en SensorEvent**
+Arquitectura innovadora basada en eventos individuales:
+- **ENTRY**: Eventos de entrada de personas (grupos de 1-6 personas)
+- **EXIT**: Eventos de salida de personas
+- **DISCONNECTION**: Eventos de desconexión de dispositivos (5% probabilidad)
 
 ```kotlin
-// Hot flow que emite continuamente
-private val counterJob = serviceScope.launch {
-    while (isConnected) {
-        delay(3000)
-        // Genera eventos automáticamente
-        _counterDataFlow.value = newData
-    }
+data class SensorEvent(
+    val id: Long = 0,
+    val deviceId: Long,
+    val eventType: EventType,
+    val peopleCount: Int,
+    val timestamp: Long
+)
+
+enum class EventType {
+    ENTRY,
+    EXIT,
+    DISCONNECTION
 }
 ```
 
-### 2. **CompositionLocal Dependency Injection**
-Uso de CompositionLocal para compartir el BluetoothService a través de toda la aplicación sin prop drilling:
-- **Persistencia** del servicio durante toda la sesión
-- **Acceso global** sin pasar parámetros manualmente
-- **Cleanup automático** al cerrar sesión
+### 2. **Simulación Realista de Dispositivos IoT**
+Servicio de simulación que genera eventos automáticos con patrones realistas:
+- Grupos de tamaño variable (40% solo, 30% parejas, 20% grupos pequeños, 10% grupos grandes)
+- Balance inteligente entre entradas/salidas según ocupación actual
+- Eventos de desconexión aleatorios (5%)
+- Notificaciones push cuando se detecta desconexión
 
-### 3. **Persistent Background Service**
-El servicio Bluetooth persiste incluso cuando navegas a otras pantallas:
-- Monitoreo → Registro de Eventos: **el contador sigue funcionando**
-- Los eventos se registran **sin perder datos**
-- Estado de conexión **sincronizado** en todas las pantallas
+### 3. **Gráficos Profesionales con YCharts**
+Visualización de datos de aforo con:
+- **Eje Y dinámico**: Se ajusta automáticamente al rango de datos
+- **Tooltips interactivos**: Muestra hora y aforo exacto al tocar
+- **Sombra bajo la línea**: Gradiente visual para mejor lectura
+- **Actualización en tiempo real**: Flow reactivo desde Room Database
+
+### 4. **Sistema de Notificaciones**
+Notificaciones push para eventos críticos:
+- Alertas de desconexión de dispositivos
+- Permiso runtime para Android 13+ (POST_NOTIFICATIONS)
+- Diálogo explicativo cuando se solicita permiso
+- Control total desde Settings
+
+### 5. **Reportes y Estadísticas**
+Pantalla de reportes con:
+- **Gráfico de aforo**: Visualización temporal de ocupación
+- **Estadísticas clave**:
+  - Total de entradas
+  - Total de salidas
+  - Aforo actual
+  - Pico de aforo
+  - Tiempo promedio de visita (calculado con área bajo la curva)
+- **Filtros de tiempo**: Hoy, Últimos 7 días, Últimos 30 días
+- **Selector de dispositivo**: Análisis individual por dispositivo
 
 ## 🏗️ Arquitectura
+
+### Patrón MVVM con Flow Reactivos
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │           AppNavigation (Root)                      │
 │  ┌─────────────────────────────────────────────┐   │
-│  │  CompositionLocalProvider                    │   │
-│  │    └── BluetoothService (Singleton)          │   │
-│  │         ├── StateFlow<CounterData>           │   │
-│  │         ├── StateFlow<Events>                │   │
-│  │         └── StateFlow<ConnectionState>       │   │
+│  │  Room Database (Persistent Storage)         │   │
+│  │    ├── DeviceDao                            │   │
+│  │    ├── SensorEventDao                       │   │
+│  │    └── UserDao                              │   │
 │  └─────────────────────────────────────────────┘   │
 │                                                     │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────┐  │
-│  │ MainScreen  │  │ MonitoringS  │  │ EventLog │  │
-│  │   (NavHost) │──│   (Tab 1)    │  │  Screen  │  │
-│  │             │  │              │  │          │  │
-│  │             │  │ ActivatorS   │  │          │  │
-│  │             │──│   (Tab 2)    │  │          │  │
-│  └─────────────┘  └──────────────┘  └──────────┘  │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  Repositories (Data Layer)                  │   │
+│  │    ├── DeviceRepository                     │   │
+│  │    ├── SensorEventRepository                │   │
+│  │    └── SettingsRepository                   │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  Services (Background Processing)           │   │
+│  │    ├── EventBasedSimulationService          │   │
+│  │    └── NotificationHandler                  │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  ViewModels (Business Logic)                │   │
+│  │    ├── DashboardViewModel                   │   │
+│  │    ├── DeviceDetailViewModel                │   │
+│  │    ├── DeviceRegistrationViewModel          │   │
+│  │    ├── ReportsViewModel                     │   │
+│  │    └── SettingsViewModel                    │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  UI Layer (Jetpack Compose)                 │   │
+│  │    ├── LoginScreen                          │   │
+│  │    ├── RegistrationScreen                   │   │
+│  │    ├── DashboardScreen                      │   │
+│  │    ├── DeviceDetailScreen                   │   │
+│  │    ├── DeviceRegistrationScreen             │   │
+│  │    ├── ReportsScreen                        │   │
+│  │    └── SettingsScreen                       │   │
+│  └─────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────┘
 ```
 
-Ver [ARCHITECTURE.md](ARCHITECTURE.md) para más detalles.
+### Flow de Datos en Tiempo Real
+
+```kotlin
+// Room Database emite eventos automáticamente
+sensorEventRepository.getEventsByDevice(deviceId, limit)
+    .map { events -> transformToOccupancyData(events) }
+    .collect { chartData ->
+        // UI se actualiza automáticamente
+    }
+```
 
 ## 🛠️ Tecnologías Utilizadas
 
@@ -90,84 +153,170 @@ Ver [ARCHITECTURE.md](ARCHITECTURE.md) para más detalles.
 - **MVVM** - Patrón de arquitectura
 - **StateFlow** - Manejo de estado reactivo
 - **Coroutines** - Programación asíncrona
-- **Room Database** - Persistencia local
+- **Room Database** - Persistencia local con Flow reactivos
 
-### Conectividad
-- **Bluetooth Low Energy (BLE)** - Comunicación con dispositivos
-- **SimulatedBluetoothService** - Simulación para desarrollo
+### Visualización de Datos
+- **YCharts 2.1.0** - Gráficos profesionales para Jetpack Compose
+- **Eje Y dinámico** - Normalización automática de valores
+
+### Notificaciones
+- **NotificationManager** - Sistema de notificaciones de Android
+- **Accompanist Permissions 0.34.0** - Manejo de permisos runtime
+- **POST_NOTIFICATIONS** - Permiso para Android 13+
 
 ### Seguridad
 - **SHA-256** - Hashing de contraseñas
 - **Room Database** - Almacenamiento cifrado de credenciales
-- **ISO/IEC 27001** - Estándares de seguridad implementados
 
 ## 📱 Pantallas
 
 ### 1. Login/Registro
 - Autenticación segura con SHA-256
-- Validación de contraseñas (mín 8 caracteres, mayúsculas, especiales)
+- Validación de contraseñas
 - Registro de nuevos usuarios
 
-### 2. Monitoreo
-- Visualización en tiempo real de:
-  - **Entradas**: Personas que ingresaron
-  - **Salidas**: Personas que salieron
-  - **Aforo**: Capacidad actual
-- Búsqueda de dispositivos Bluetooth
-- Conexión manual a dispositivos
-- Navegación al registro de eventos
-- Botón de desconexión y reinicio
+### 2. Dashboard
+- Lista de dispositivos registrados
+- Indicadores de estado (activo/inactivo)
+- Acceso rápido a detalles de cada dispositivo
+- Botón de registro de nuevos dispositivos
 
-### 3. Activador
-- Control remoto del dispositivo
-- Switch de activación/desactivación
-- Slider para ajustar valores
-- Envío de comandos vía Bluetooth
+### 3. Device Detail
+- **Métricas en tiempo real**:
+  - Total de personas que han entrado
+  - Total de personas que han salido
+  - Aforo actual (ocupación)
+- **Registro de eventos expandibles**:
+  - Eventos de entrada (verde)
+  - Eventos de salida (rojo)
+  - Eventos de desconexión (naranja con ícono de advertencia)
+- **Detalles por evento**:
+  - Timestamp preciso
+  - Número de personas
+  - Tipo de evento
 
-### 4. Registro de Eventos
-- Lista en tiempo real de todos los eventos
-- Actualización automática sin refrescar
-- Timestamps precisos (milisegundos)
-- Navegación de retorno con persistencia de datos
+### 4. Device Registration
+- Registro de nuevos dispositivos
+- Configuración de nombre y capacidad
+- Activación automática al registrar
 
-## 🔒 Seguridad
+### 5. Reports & Charts
+- **Gráfico de aforo** (OccupancyChart):
+  - Línea temporal de ocupación
+  - Eje Y dinámico que se ajusta a los datos
+  - Tooltips interactivos con hora y aforo
+  - Sombra bajo la línea para mejor visualización
+- **Estadísticas**:
+  - Total de entradas/salidas
+  - Aforo actual y pico
+  - Tiempo promedio de visita (en minutos)
+- **Filtros**:
+  - Selector de dispositivo
+  - Rangos de tiempo: Hoy, Últimos 7 días, Últimos 30 días
 
-La aplicación implementa múltiples capas de seguridad basadas en estándares internacionales:
+### 6. Settings
+- **Notificaciones**:
+  - Toggle para activar/desactivar
+  - Solicitud automática de permiso en Android 13+
+  - Diálogo explicativo cuando se necesita
+- **Intervalo de simulación**:
+  - Slider para ajustar frecuencia (1-30 segundos)
+- **Gestión de datos**:
+  - Borrar todas las lecturas
+- **Información de la app**
+- **Cerrar sesión**
 
-- **ISO/IEC 27001 (A.9.4.2)**: Sistema de autenticación por contraseña
-- **ISO/IEC 27001 (A.10.1.1)**: Controles criptográficos para datos Bluetooth
-- **Principio de mínimos privilegios**: Solo permisos necesarios
-- **Hash SHA-256**: Contraseñas nunca en texto plano
-- **Validación de entrada**: Prevención de inyecciones
+## 🔔 Sistema de Notificaciones
 
-Ver [SECURITY.md](SECURITY.md) y [ISO_COMPLIANCE.md](ISO_COMPLIANCE.md) para detalles completos.
+### Flujo de Permiso en Android 13+
 
-## 📊 Cumplimiento de Estándares OT
+```kotlin
+// 1. Usuario activa notificaciones en Settings
+viewModel.toggleNotifications(true)
 
-La aplicación sigue lineamientos de seguridad para tecnología operacional (OT):
-- **IEC 62443**: Seguridad en sistemas de control industrial
-- **Segmentación**: Separación entre app móvil y dispositivos IoT
-- **Autenticación**: Verificación de dispositivos antes de conexión
-- **Monitoreo**: Registro de eventos de seguridad
+// 2. App verifica versión de Android
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    // 3. Verifica estado del permiso
+    when {
+        permissionState.status.isGranted -> {
+            // Permiso concedido, activar notificaciones
+        }
+        permissionState.status.shouldShowRationale -> {
+            // Mostrar diálogo explicativo
+        }
+        else -> {
+            // Solicitar permiso directamente
+            permissionState.launchPermissionRequest()
+        }
+    }
+}
 
-Ver [OT_SECURITY.md](OT_SECURITY.md) para más información.
+// 4. Observar cuando se concede el permiso
+LaunchedEffect(permissionState?.status) {
+    if (permissionState?.status?.isGranted == true) {
+        viewModel.toggleNotifications(true)
+    }
+}
+```
 
-## 🧪 Testing
+### NotificationHandler
 
-La aplicación ha sido probada en múltiples escenarios:
-- Navegación entre pantallas durante el conteo
-- Conexión/desconexión de dispositivos
-- Persistencia de datos en background
-- Manejo de errores de conectividad
+```kotlin
+// Crear notificación de desconexión
+fun showDisconnectionNotification(deviceName: String) {
+    val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_warning)
+        .setContentTitle("⚠️ Dispositivo desconectado")
+        .setContentText("El dispositivo \"$deviceName\" ha perdido conexión")
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .build()
 
-Ver [TESTING.md](TESTING.md) para detalles de pruebas y resultados.
+    notificationManager.notify(notificationId++, notification)
+}
+```
+
+## 🧪 Cálculos de Estadísticas
+
+### Tiempo Promedio de Visita
+
+El tiempo promedio de visita se calcula usando el **área bajo la curva** de ocupación:
+
+```kotlin
+// Calcular área bajo la curva (personas-minuto acumulados)
+for (i in 0 until points.size - 1) {
+    val currentOccupancy = points[i].value
+    val nextTimestamp = points[i + 1].timestamp
+    val currentTimestamp = points[i].timestamp
+    val durationMinutes = (nextTimestamp - currentTimestamp) / (1000.0 * 60.0)
+
+    // Área del trapecio: aforo actual × duración
+    totalPersonMinutes += currentOccupancy * durationMinutes
+}
+
+// Promedio: personas-minuto totales / número de salidas
+avgDwellMinutes = (totalPersonMinutes / totalExits).toInt()
+```
+
+### Normalización del Eje Y
+
+Para el gráfico con eje Y dinámico:
+
+```kotlin
+// 1. Calcular valor máximo con 20% de padding
+val maxY = (occupancyPoints.maxOfOrNull { it.value } ?: 0f) * 1.2f
+
+// 2. Normalizar puntos al rango del eje (0-5)
+val normalizedY = (point.value / maxY) * yAxisSteps
+
+// 3. Escalar etiquetas del eje Y
+val scaledValue = (value * maxY / yAxisSteps).toInt()
+```
 
 ## 🚦 Cómo Usar
 
 ### Requisitos
 - Android 8.0 (API 26) o superior
-- Bluetooth habilitado
-- Permisos de ubicación (requerido por Android para BLE)
+- Android 13+ para notificaciones (opcional)
 
 ### Instalación
 1. Clona el repositorio
@@ -182,21 +331,109 @@ git clone https://github.com/felipevidela/counter_app_android-.git
 ### Uso
 1. **Registrarse**: Crea una cuenta con usuario y contraseña segura
 2. **Login**: Ingresa con tus credenciales
-3. **Buscar Dispositivo**: Presiona "Buscar" para escanear dispositivos BLE
-4. **Conectar**: Selecciona el dispositivo contador
-5. **Monitorear**: Observa el conteo en tiempo real
-6. **Ver Registro**: Navega a eventos para ver el historial
-7. **Desconectar**: Usa "Desconectar y Reiniciar" para empezar de nuevo
+3. **Registrar Dispositivo**: Agrega un nuevo dispositivo de conteo
+4. **Dashboard**: Ve tus dispositivos y su estado
+5. **Device Detail**: Monitorea en tiempo real los eventos
+6. **Reports**: Analiza estadísticas y gráficos de aforo
+7. **Settings**:
+   - Activa notificaciones (se pedirá permiso en Android 13+)
+   - Ajusta intervalo de simulación
+   - Borra datos si es necesario
 
-## 📈 Roadmap
+## 📈 Características Técnicas Avanzadas
 
-- [ ] Implementar encriptación AES para datos Bluetooth
-- [ ] Sistema de interconexión multi-dispositivo (Firebase/MQTT)
-- [ ] Tests unitarios automatizados
-- [ ] Exportación de datos a CSV/PDF
-- [ ] Notificaciones push cuando se alcanza cierto aforo
+### 1. Flow Reactivos desde Room
+```kotlin
+// Los datos se actualizan automáticamente sin polling
+@Query("SELECT * FROM sensor_events WHERE deviceId = :deviceId ORDER BY timestamp DESC LIMIT :limit")
+fun getEventsByDevice(deviceId: Long, limit: Int): Flow<List<SensorEvent>>
+```
+
+### 2. Simulación Inteligente de Eventos
+```kotlin
+// Patrón realista de entradas/salidas
+private fun decideEventType(currentOccupancy: Int, capacity: Int): EventType {
+    val occupancyPercentage = currentOccupancy.toFloat() / capacity.toFloat()
+
+    return when {
+        occupancyPercentage > 0.9f -> // Más salidas si está lleno
+            if (Random.nextInt(100) < 70) EventType.EXIT else EventType.ENTRY
+        occupancyPercentage < 0.2f -> // Más entradas si está vacío
+            if (Random.nextInt(100) < 80) EventType.ENTRY else EventType.EXIT
+        else -> // Normal: 60% entradas, 40% salidas
+            if (Random.nextInt(100) < 60) EventType.ENTRY else EventType.EXIT
+    }
+}
+```
+
+### 3. Gráfico con Eje Y Dinámico
+```kotlin
+// Se ajusta automáticamente a cualquier rango de datos
+val maxY = data.maxValue.toFloat().coerceAtLeast(5f)
+val normalizedY = (point.value / maxY) * yAxisSteps
+```
+
+## 📊 Estructura del Proyecto
+
+```
+app/src/main/java/com/example/counter_app/
+├── auth/
+│   └── LoginViewModel.kt
+├── data/
+│   ├── AppDatabase.kt
+│   ├── Device.kt
+│   ├── DeviceDao.kt
+│   ├── DeviceRepository.kt
+│   ├── SensorEvent.kt
+│   ├── SensorEventDao.kt
+│   ├── SensorEventRepository.kt
+│   ├── SettingsRepository.kt
+│   ├── User.kt
+│   └── UserDao.kt
+├── domain/
+│   ├── ChartPoint.kt
+│   ├── OccupancyChartData.kt
+│   └── ReportStats.kt
+├── navigation/
+│   └── AppNavigation.kt
+├── security/
+│   └── NotificationHandler.kt
+├── service/
+│   ├── DeviceSimulationService.kt
+│   └── EventBasedSimulationService.kt
+├── ui/
+│   ├── DashboardScreen.kt
+│   ├── DeviceDetailScreen.kt
+│   ├── DeviceRegistrationScreen.kt
+│   ├── LoginScreen.kt
+│   ├── RegistrationScreen.kt
+│   ├── ReportsScreen.kt
+│   ├── SettingsScreen.kt
+│   └── components/
+│       └── OccupancyChart.kt
+├── util/
+│   └── PasswordUtil.kt
+└── viewmodel/
+    ├── DashboardViewModel.kt
+    ├── DeviceDetailViewModel.kt
+    ├── DeviceRegistrationViewModel.kt
+    ├── ReportsViewModel.kt
+    └── SettingsViewModel.kt
+```
+
+## 🔄 Roadmap
+
+- [x] Sistema de eventos basado en SensorEvent
+- [x] Gráficos profesionales con YCharts
+- [x] Notificaciones de desconexión
+- [x] Eje Y dinámico en gráficos
+- [x] Permiso runtime para Android 13+
+- [x] Estadísticas avanzadas (tiempo promedio de visita)
+- [ ] Exportación de reportes a PDF/CSV
 - [ ] Dashboard web complementario
-- [ ] Soporte para múltiples sensores simultáneos
+- [ ] Integración con dispositivos IoT reales
+- [ ] Sistema de alertas configurables
+- [ ] Predicción de aforo con ML
 
 ## 👥 Contribución
 
@@ -219,4 +456,4 @@ Project Link: [https://github.com/felipevidela/counter_app_android-](https://git
 
 ---
 
-**🤖 Desarrollado con Claude Code** - AI-assisted development
+**Desarrollado con Claude Code** - AI-assisted development

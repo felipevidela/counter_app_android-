@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.counter_app.data.AppDatabase
-import com.example.counter_app.data.SensorReadingRepository
+import com.example.counter_app.data.SensorEventRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -13,15 +13,15 @@ import java.util.Calendar
 data class SettingsState(
     val simulationIntervalSeconds: Int = 5,
     val darkModeEnabled: Boolean = false,
-    val notificationsEnabled: Boolean = true
+    val notificationsEnabled: Boolean = false
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-    private val sensorReadingRepository: SensorReadingRepository
+    private val sensorEventRepository: SensorEventRepository
 
     init {
         val database = AppDatabase.getDatabase(application)
-        sensorReadingRepository = SensorReadingRepository(database.sensorReadingDao())
+        sensorEventRepository = SensorEventRepository(database.sensorEventDao())
     }
 
     private val _settings = MutableStateFlow(SettingsState())
@@ -42,9 +42,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun clearAllData(onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                // Delete readings older than 1 millisecond (essentially all)
+                // Delete events older than 1 millisecond (essentially all)
                 val currentTime = Calendar.getInstance().timeInMillis
-                sensorReadingRepository.deleteOldReadings(currentTime)
+                sensorEventRepository.deleteOldEvents(currentTime)
                 onComplete()
             } catch (e: Exception) {
                 // Handle error
