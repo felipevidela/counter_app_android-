@@ -41,7 +41,7 @@ fun OccupancyChart(
         // El data.maxValue ya incluye 20% de padding del ViewModel
         // Usamos ese valor para el rango del gráfico
         val chartMaxY = data.maxValue.toFloat().coerceAtLeast(5f)
-        val yAxisSteps = 5
+        val yAxisSteps = 10
 
         // Construir datos para YCharts
         // Normalizar valores Y al rango 0-yAxisSteps para que coincidan con el eje Y
@@ -70,12 +70,12 @@ fun OccupancyChart(
             ),
             selectionHighlightPopUp = SelectionHighlightPopUp(
                 popUpLabel = { x, y ->
-                    // Tooltip personalizado: "HH:mm\nAforo: X personas"
+                    // Tooltip personalizado: "HH:mm - Aforo: X personas"
                     val pointIndex = x.toInt()
                     val point = data.occupancyPoints.getOrNull(pointIndex)
                     val aforo = point?.value?.toInt() ?: 0  // Usar valor original, no normalizado
                     val hora = point?.let { formatTimestamp(it.timestamp) } ?: ""
-                    "$hora\nAforo: $aforo personas"
+                    "$hora - Aforo: $aforo personas"
                 }
             )
         )

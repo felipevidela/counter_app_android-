@@ -158,9 +158,9 @@ class NotificationHandler(private val context: Context) {
      */
     fun showTrafficPeakAlert(deviceName: String, entriesCount: Int) {
         val notification = buildOccupancyNotification(
-            title = "🚶 Pico de Tráfico",
+            title = "🚶 Peak de Tráfico",
             content = "Muchas entradas en '$deviceName': $entriesCount en 5 minutos",
-            bigText = "Se ha detectado un pico de tráfico en '$deviceName': $entriesCount entradas en los últimos 5 minutos.",
+            bigText = "Se ha detectado un peak de tráfico en '$deviceName': $entriesCount entradas en los últimos 5 minutos.",
             notificationId = NOTIFICATION_ID_TRAFFIC_PEAK
         )
 

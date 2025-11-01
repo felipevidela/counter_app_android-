@@ -99,7 +99,7 @@ class AvgDwellTimeCalculationTest {
             ChartPoint(baseTime + 0 * 60000, 0f),
             ChartPoint(baseTime + 5 * 60000, 2f),
             ChartPoint(baseTime + 15 * 60000, 5f),
-            ChartPoint(baseTime + 30 * 60000, 8f),       // Pico: 8 personas
+            ChartPoint(baseTime + 30 * 60000, 8f),       // Peak: 8 personas
             ChartPoint(baseTime + 45 * 60000, 6f),
             ChartPoint(baseTime + 60 * 60000, 4f),
             ChartPoint(baseTime + 75 * 60000, 3f),

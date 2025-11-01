@@ -3,6 +3,7 @@ package com.example.counter_app.ui
 import android.Manifest
 import android.os.Build
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
@@ -132,20 +133,23 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Preferencias",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            item {
+                Text(
+                    text = "Preferencias",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -197,10 +201,12 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Intervalo de simulación", style = MaterialTheme.typography.bodyLarge)
+            item {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Intervalo de simulación", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         "Cada ${settings.simulationIntervalSeconds} segundos",
                         style = MaterialTheme.typography.bodySmall,
@@ -215,17 +221,23 @@ fun SettingsScreen(
                     )
                 }
             }
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            Text(
-                text = "Alertas Configurables",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            item {
+                Text(
+                    text = "Alertas Configurables",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
-            // Alerta de Desconexión
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                // Alerta de Desconexión
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -249,9 +261,11 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
-            // Alerta de Aforo Bajo
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                // Alerta de Aforo Bajo
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -291,9 +305,11 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
-            // Alerta de Aforo Alto
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                // Alerta de Aforo Alto
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -333,9 +349,11 @@ fun SettingsScreen(
                     }
                 }
             }
+            }
 
-            // Alerta de Pico de Tráfico
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                // Alerta de Peak de Tráfico
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -343,7 +361,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Alerta de Pico de Tráfico", style = MaterialTheme.typography.bodyLarge)
+                            Text("Alerta de Peak de Tráfico", style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 "Notificar cuando haya muchas entradas en poco tiempo",
                                 style = MaterialTheme.typography.bodySmall,
@@ -375,35 +393,51 @@ fun SettingsScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Datos",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            FilledTonalButton(
-                onClick = { showClearDataDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Borrar todas las lecturas")
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            Divider()
+            item {
+                Text(
+                    text = "Datos",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                FilledTonalButton(
+                    onClick = { showClearDataDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Borrar todas las lecturas")
+                }
+            }
 
-            Text(
-                text = "Información",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
+            }
 
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            item {
+                Divider()
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                Text(
+                    text = "Información",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            item {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Counter App", style = MaterialTheme.typography.titleLarge)
                     Text(
@@ -419,19 +453,24 @@ fun SettingsScreen(
                     )
                 }
             }
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            Button(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Icon(Icons.Default.ExitToApp, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Cerrar Sesión")
+            item {
+                Button(
+                    onClick = { showLogoutDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.ExitToApp, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Cerrar Sesión")
+                }
             }
         }
     }

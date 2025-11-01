@@ -71,7 +71,7 @@ Notificaciones push inteligentes para eventos críticos:
 - **Alerta de Desconexión**: Notifica cuando un dispositivo pierde conexión (configurable on/off)
 - **Alerta de Aforo Bajo**: Notifica cuando la ocupación cae bajo un umbral configurable (5-30%)
 - **Alerta de Aforo Alto**: Notifica cuando se acerca a capacidad máxima (70-100%)
-- **Alerta de Pico de Tráfico**: Detecta muchas entradas en corto tiempo (5-20 entradas en 5 min)
+- **Alerta de Peak de Tráfico**: Detecta muchas entradas en corto tiempo (5-20 entradas en 5 min)
 - **Throttling inteligente**: Evita spam de notificaciones (máx. 1 alerta/tipo cada 10 min)
 - **Canales separados**: Alertas de dispositivos (alta prioridad) vs alertas de aforo (normal)
 - **Permiso runtime** para Android 13+ (POST_NOTIFICATIONS)
@@ -99,7 +99,7 @@ Pantalla de reportes con:
   - Total de entradas
   - Total de salidas
   - Aforo actual
-  - Pico de aforo
+  - Peak de aforo
   - Tiempo promedio de visita (calculado con área bajo la curva)
 - **Filtros de tiempo**: Hoy, Últimos 7 días, Últimos 30 días
 - **Selector de dispositivo**: Análisis individual por dispositivo
@@ -254,7 +254,7 @@ sensorEventRepository.getEventsByDevice(deviceId, limit)
   - **Alerta de Aforo Alto**:
     - Toggle on/off
     - Slider de umbral (70-100% de capacidad)
-  - **Alerta de Pico de Tráfico**:
+  - **Alerta de Peak de Tráfico**:
     - Toggle on/off
     - Slider de umbral (5-20 entradas en 5 minutos)
 - **Gestión de datos**:
@@ -533,7 +533,7 @@ private suspend fun checkAlertConditions(device: Device, event: SensorEvent) {
     }
 
     // 2. Verificar Alerta de Aforo Alto
-    // 3. Verificar Alerta de Pico de Tráfico
+    // 3. Verificar Alerta de Peak de Tráfico
 }
 ```
 
@@ -581,7 +581,7 @@ private fun shouldSendAlert(deviceId: Long, alertType: String): Boolean {
 }
 ```
 
-### Tracking de Pico de Tráfico
+### Tracking de Peak de Tráfico
 
 Ventana deslizante de 5 minutos:
 

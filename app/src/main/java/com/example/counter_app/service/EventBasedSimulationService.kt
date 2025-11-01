@@ -267,7 +267,7 @@ class EventBasedSimulationService(private val application: Application) {
             }
         }
 
-        // 3. Verificar Alerta de Pico de Tráfico
+        // 3. Verificar Alerta de Peak de Tráfico
         if (alertSettings.trafficPeakEnabled && event.eventType == EventType.ENTRY) {
             val recentEntries = recentEntriesMap[device.id] ?: emptyList()
 
