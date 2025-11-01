@@ -73,6 +73,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     // Funciones para gestionar alertas configurables
 
+    fun updateDisconnectionAlert(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateDisconnectionAlert(enabled)
+        }
+    }
+
     fun updateLowOccupancyAlert(enabled: Boolean, threshold: Int) {
         viewModelScope.launch {
             settingsRepository.updateLowOccupancyAlert(enabled, threshold)

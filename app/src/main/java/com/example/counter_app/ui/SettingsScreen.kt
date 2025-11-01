@@ -224,6 +224,32 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.primary
             )
 
+            // Alerta de Desconexión
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Alerta de Desconexión", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Notificar cuando un dispositivo pierda conexión",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = alertSettings.disconnectionAlertEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.updateDisconnectionAlert(enabled)
+                            }
+                        )
+                    }
+                }
+            }
+
             // Alerta de Aforo Bajo
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {

@@ -33,6 +33,13 @@ class SettingsRepository(private val alertSettingsDao: AlertSettingsDao) {
     }
 
     /**
+     * Actualiza solo la configuración de alerta de desconexión.
+     */
+    suspend fun updateDisconnectionAlert(enabled: Boolean) {
+        alertSettingsDao.updateDisconnectionAlert(enabled)
+    }
+
+    /**
      * Actualiza solo la configuración de alerta de aforo bajo.
      */
     suspend fun updateLowOccupancyAlert(enabled: Boolean, threshold: Int) {

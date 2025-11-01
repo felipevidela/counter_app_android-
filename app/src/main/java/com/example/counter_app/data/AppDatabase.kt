@@ -48,7 +48,7 @@ import androidx.room.TypeConverters
  */
 @Database(
     entities = [User::class, Device::class, SensorReading::class, SensorEvent::class, AlertSettings::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

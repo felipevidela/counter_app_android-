@@ -68,14 +68,14 @@ Visualización de datos de aforo con:
 
 ### 4. **Sistema de Notificaciones y Alertas Configurables**
 Notificaciones push inteligentes para eventos críticos:
-- **Alerta de Desconexión**: Notificación automática cuando un dispositivo pierde conexión
+- **Alerta de Desconexión**: Notifica cuando un dispositivo pierde conexión (configurable on/off)
 - **Alerta de Aforo Bajo**: Notifica cuando la ocupación cae bajo un umbral configurable (5-30%)
 - **Alerta de Aforo Alto**: Notifica cuando se acerca a capacidad máxima (70-100%)
 - **Alerta de Pico de Tráfico**: Detecta muchas entradas en corto tiempo (5-20 entradas en 5 min)
 - **Throttling inteligente**: Evita spam de notificaciones (máx. 1 alerta/tipo cada 10 min)
 - **Canales separados**: Alertas de dispositivos (alta prioridad) vs alertas de aforo (normal)
 - **Permiso runtime** para Android 13+ (POST_NOTIFICATIONS)
-- **Configuración total** desde Settings con sliders personalizables
+- **Configuración total** desde Settings: todas las alertas con toggle on/off personalizable
 
 ### 5. **Exportación de Datos**
 Sistema completo de exportación de historial de eventos:
@@ -245,6 +245,9 @@ sensorEventRepository.getEventsByDevice(deviceId, limit)
   - Toggle de notificaciones (solicitud automática de permiso en Android 13+)
   - Slider de intervalo de simulación (1-30 segundos)
 - **Alertas Configurables**:
+  - **Alerta de Desconexión**:
+    - Toggle on/off
+    - Notifica cuando un dispositivo pierde conexión
   - **Alerta de Aforo Bajo**:
     - Toggle on/off
     - Slider de umbral (5-30% de capacidad)
@@ -498,6 +501,7 @@ El sistema de alertas configurables permite al usuario personalizar completament
 @Entity(tableName = "alert_settings")
 data class AlertSettings(
     @PrimaryKey val id: Long = 1,
+    val disconnectionAlertEnabled: Boolean = false,  // Alerta de desconexión
     val lowOccupancyEnabled: Boolean = false,
     val lowOccupancyThreshold: Int = 5,       // 5% por defecto
     val highOccupancyEnabled: Boolean = false,
@@ -530,6 +534,31 @@ private suspend fun checkAlertConditions(device: Device, event: SensorEvent) {
 
     // 2. Verificar Alerta de Aforo Alto
     // 3. Verificar Alerta de Pico de Tráfico
+}
+```
+
+**Alerta de Desconexión:**
+
+La alerta de desconexión se verifica cuando se genera un evento de desconexión (10% probabilidad):
+
+```kotlin
+private suspend fun generateEventForDevice(device: Device) {
+    // 10% de probabilidad de evento de desconexión
+    if (Random.nextInt(100) < 10) {
+        val disconnectionEvent = SensorEvent(...)
+        sensorEventRepository.insertEvent(disconnectionEvent)
+
+        // Verificar si la alerta de desconexión está habilitada
+        val alertSettings = settingsRepository.getAlertSettings().first()
+        if (alertSettings.disconnectionAlertEnabled) {
+            if (shouldSendAlert(device.id, "disconnection")) {
+                notificationHandler.showDisconnectionNotification(device.name)
+                updateLastAlertTime(device.id, "disconnection")
+            }
+        }
+        return
+    }
+    // ... resto de la generación de eventos
 }
 ```
 

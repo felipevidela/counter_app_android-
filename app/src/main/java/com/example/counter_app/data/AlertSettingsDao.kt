@@ -22,6 +22,12 @@ interface AlertSettingsDao {
     suspend fun saveAlertSettings(settings: AlertSettings)
 
     /**
+     * Actualiza solo el estado de alerta de desconexión.
+     */
+    @Query("UPDATE alert_settings SET disconnectionAlertEnabled = :enabled WHERE id = 1")
+    suspend fun updateDisconnectionAlert(enabled: Boolean)
+
+    /**
      * Actualiza solo el estado de alerta de aforo bajo.
      */
     @Query("UPDATE alert_settings SET lowOccupancyEnabled = :enabled, lowOccupancyThreshold = :threshold WHERE id = 1")

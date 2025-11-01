@@ -104,8 +104,14 @@ class EventBasedSimulationService(private val application: Application) {
             )
             sensorEventRepository.insertEvent(disconnectionEvent)
 
-            // Mostrar notificación de desconexión
-            notificationHandler.showDisconnectionNotification(device.name)
+            // Verificar si la alerta de desconexión está habilitada
+            val alertSettings = settingsRepository.getAlertSettings().first()
+            if (alertSettings.disconnectionAlertEnabled) {
+                if (shouldSendAlert(device.id, "disconnection")) {
+                    notificationHandler.showDisconnectionNotification(device.name)
+                    updateLastAlertTime(device.id, "disconnection")
+                }
+            }
             return
         }
 

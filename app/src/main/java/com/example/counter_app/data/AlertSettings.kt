@@ -14,6 +14,9 @@ data class AlertSettings(
     @PrimaryKey
     val id: Long = 1, // Solo una configuración global
 
+    // Alerta de desconexión de dispositivos
+    val disconnectionAlertEnabled: Boolean = false,
+
     // Alerta de aforo bajo
     val lowOccupancyEnabled: Boolean = false,
     val lowOccupancyThreshold: Int = 5, // Porcentaje de capacidad
