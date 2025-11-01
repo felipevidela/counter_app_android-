@@ -1,394 +1,319 @@
 package com.example.counter_app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.counter_app.domain.OccupancyChartData
+import com.example.counter_app.domain.ReportStats
+import com.example.counter_app.ui.components.AppTopBar
+import com.example.counter_app.ui.components.OccupancyChart
 import com.example.counter_app.viewmodel.ReportsViewModel
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 
+/**
+ * Pantalla de Reportes y Gráficos - REESCRITA DESDE CERO.
+ *
+ * Diseño simple y limpio:
+ * 1. Filtros (dispositivo + rango)
+ * 2. Gráfico de AFORO en tiempo real (YCharts)
+ * 3. Estadísticas (entradas, salidas, aforo actual y máximo)
+ *
+ * Todo reactivo con actualización en tiempo real automática.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(
     viewModel: ReportsViewModel = viewModel()
 ) {
+    // Observar estados reactivos
     val devices by viewModel.devices.collectAsState(initial = emptyList())
-    val chartData by viewModel.chartData.collectAsState(initial = emptyList())
+    val chartData by viewModel.chartData.collectAsState(initial = OccupancyChartData.EMPTY)
+    val stats by viewModel.stats.collectAsState(initial = ReportStats.EMPTY)
 
+    // Estados locales para UI
     var selectedDeviceId by remember { mutableStateOf<Long?>(null) }
     var selectedRange by remember { mutableStateOf(ReportsViewModel.DateRange.TODAY) }
     var expandedDevice by remember { mutableStateOf(false) }
     var expandedRange by remember { mutableStateOf(false) }
 
-    // Auto-select first device
+    // Auto-seleccionar primer dispositivo
     LaunchedEffect(devices) {
         if (selectedDeviceId == null && devices.isNotEmpty()) {
-            selectedDeviceId = devices.first().id
-            viewModel.setSelectedDevice(devices.first().id)
+            val firstDeviceId = devices.first().id
+            selectedDeviceId = firstDeviceId
+            viewModel.setSelectedDevice(firstDeviceId)
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Reportes y Gráficos") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+            AppTopBar(title = "Reportes y Gráficos")
         }
     ) { padding ->
         if (devices.isEmpty()) {
-            Box(
+            // Estado sin dispositivos
+            EmptyDevicesState(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "No hay dispositivos registrados",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Crea dispositivos para ver sus reportes",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+                    .padding(padding)
+            )
         } else {
-            val scrollState = rememberScrollState()
+            // Contenido principal
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .verticalScroll(scrollState)
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    "Filtros",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                // Sección de Filtros
+                FiltersSection(
+                    devices = devices,
+                    selectedDeviceId = selectedDeviceId,
+                    selectedRange = selectedRange,
+                    expandedDevice = expandedDevice,
+                    expandedRange = expandedRange,
+                    onDeviceSelected = { deviceId ->
+                        selectedDeviceId = deviceId
+                        viewModel.setSelectedDevice(deviceId)
+                        expandedDevice = false
+                    },
+                    onRangeSelected = { range ->
+                        selectedRange = range
+                        viewModel.setDateRange(range)
+                        expandedRange = false
+                    },
+                    onDeviceExpandedChange = { expandedDevice = it },
+                    onRangeExpandedChange = { expandedRange = it }
                 )
 
-                ExposedDropdownMenuBox(
-                    expanded = expandedDevice,
-                    onExpandedChange = { expandedDevice = !expandedDevice }
-                ) {
-                    @Suppress("DEPRECATION")
-                    OutlinedTextField(
-                        value = devices.find { it.id == selectedDeviceId }?.name ?: "",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Dispositivo") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDevice) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedDevice,
-                        onDismissRequest = { expandedDevice = false }
-                    ) {
-                        devices.forEach { device ->
-                            DropdownMenuItem(
-                                text = { Text(device.name) },
-                                onClick = {
-                                    selectedDeviceId = device.id
-                                    viewModel.setSelectedDevice(device.id)
-                                    expandedDevice = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedRange,
-                    onExpandedChange = { expandedRange = !expandedRange }
-                ) {
-                    @Suppress("DEPRECATION")
-                    OutlinedTextField(
-                        value = when (selectedRange) {
-                            ReportsViewModel.DateRange.TODAY -> "Hoy"
-                            ReportsViewModel.DateRange.LAST_7_DAYS -> "Últimos 7 días"
-                            ReportsViewModel.DateRange.LAST_30_DAYS -> "Últimos 30 días"
-                        },
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Rango de fechas") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRange) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedRange,
-                        onDismissRequest = { expandedRange = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Hoy") },
-                            onClick = {
-                                selectedRange = ReportsViewModel.DateRange.TODAY
-                                viewModel.setDateRange(selectedRange)
-                                expandedRange = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Últimos 7 días") },
-                            onClick = {
-                                selectedRange = ReportsViewModel.DateRange.LAST_7_DAYS
-                                viewModel.setDateRange(selectedRange)
-                                expandedRange = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Últimos 30 días") },
-                            onClick = {
-                                selectedRange = ReportsViewModel.DateRange.LAST_30_DAYS
-                                viewModel.setDateRange(selectedRange)
-                                expandedRange = false
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "Actividad por Evento",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    "Muestra cuántas personas entraron y salieron en cada lectura",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                if (chartData.isEmpty()) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No hay datos para mostrar",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    ChartCard(chartData = chartData)
-                }
+                // Sección de Gráfico
+                ChartSection(chartData = chartData)
 
-                StatsCard(chartData = chartData)
+                // Sección de Estadísticas
+                StatsSection(stats = stats)
             }
         }
     }
 }
 
 @Composable
-fun ChartCard(chartData: List<com.example.counter_app.viewmodel.ChartData>) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
+private fun EmptyDevicesState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.padding(16.dp)) {
-            if (chartData.isNotEmpty()) {
-                SimpleLineChart(
-                    chartData = chartData,
-                    modifier = Modifier.fillMaxSize()
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "No hay dispositivos registrados",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "Crea dispositivos en el Dashboard para ver reportes",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FiltersSection(
+    devices: List<com.example.counter_app.data.Device>,
+    selectedDeviceId: Long?,
+    selectedRange: ReportsViewModel.DateRange,
+    expandedDevice: Boolean,
+    expandedRange: Boolean,
+    onDeviceSelected: (Long) -> Unit,
+    onRangeSelected: (ReportsViewModel.DateRange) -> Unit,
+    onDeviceExpandedChange: (Boolean) -> Unit,
+    onRangeExpandedChange: (Boolean) -> Unit
+) {
+    Text(
+        "Filtros",
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold
+    )
+
+    // Selector de Dispositivo
+    ExposedDropdownMenuBox(
+        expanded = expandedDevice,
+        onExpandedChange = onDeviceExpandedChange
+    ) {
+        @Suppress("DEPRECATION")
+        OutlinedTextField(
+            value = devices.find { it.id == selectedDeviceId }?.name ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Dispositivo") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDevice) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expandedDevice,
+            onDismissRequest = { onDeviceExpandedChange(false) }
+        ) {
+            devices.forEach { device ->
+                DropdownMenuItem(
+                    text = { Text(device.name) },
+                    onClick = { onDeviceSelected(device.id) }
                 )
             }
         }
     }
+
+    // Selector de Rango
+    ExposedDropdownMenuBox(
+        expanded = expandedRange,
+        onExpandedChange = onRangeExpandedChange
+    ) {
+        @Suppress("DEPRECATION")
+        OutlinedTextField(
+            value = selectedRange.getDisplayName(),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Rango de fechas") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRange) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expandedRange,
+            onDismissRequest = { onRangeExpandedChange(false) }
+        ) {
+            ReportsViewModel.DateRange.entries.forEach { range ->
+                DropdownMenuItem(
+                    text = { Text(range.getDisplayName()) },
+                    onClick = { onRangeSelected(range) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartSection(chartData: OccupancyChartData) {
+    Text(
+        "Aforo en Tiempo Real",
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold
+    )
+
+    Text(
+        "Ocupación actual del establecimiento • Actualización automática",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 
     Spacer(modifier = Modifier.height(8.dp))
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-                .padding(4.dp)
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color(0xFF4CAF50)
-            ) {}
-        }
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("Entradas", style = MaterialTheme.typography.bodySmall)
-        Spacer(modifier = Modifier.width(16.dp))
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-                .padding(4.dp)
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = Color(0xFFF44336)
-            ) {}
-        }
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("Salidas", style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-fun SimpleLineChart(
-    chartData: List<com.example.counter_app.viewmodel.ChartData>,
-    modifier: Modifier = Modifier
-) {
-    val enteredColor = Color(0xFF4CAF50)
-    val leftColor = Color(0xFFF44336)
-
-    Canvas(modifier = modifier) {
-        if (chartData.isEmpty()) return@Canvas
-
-        val width = size.width
-        val height = size.height
-        val padding = 40f
-
-        // Find max value for scaling
-        val maxEntered = chartData.maxOf { it.entered }.toFloat()
-        val maxLeft = chartData.maxOf { it.left }.toFloat()
-        val maxValue = maxOf(maxEntered, maxLeft, 1f)
-
-        // Calculate step sizes
-        val xStep = (width - padding * 2) / (chartData.size - 1).coerceAtLeast(1)
-        val yScale = (height - padding * 2) / maxValue
-
-        // Draw entered line (green)
-        val enteredPath = Path()
-        chartData.forEachIndexed { index, data ->
-            val x = padding + index * xStep
-            val y = height - padding - (data.entered.toFloat() * yScale)
-
-            if (index == 0) {
-                enteredPath.moveTo(x, y)
-            } else {
-                enteredPath.lineTo(x, y)
-            }
-        }
-        drawPath(
-            path = enteredPath,
-            color = enteredColor,
-            style = Stroke(width = 3f)
-        )
-
-        // Draw left line (red)
-        val leftPath = Path()
-        chartData.forEachIndexed { index, data ->
-            val x = padding + index * xStep
-            val y = height - padding - (data.left.toFloat() * yScale)
-
-            if (index == 0) {
-                leftPath.moveTo(x, y)
-            } else {
-                leftPath.lineTo(x, y)
-            }
-        }
-        drawPath(
-            path = leftPath,
-            color = leftColor,
-            style = Stroke(width = 3f)
-        )
-
-        // Draw data points for entered
-        chartData.forEachIndexed { index, data ->
-            val x = padding + index * xStep
-            val y = height - padding - (data.entered.toFloat() * yScale)
-            drawCircle(
-                color = enteredColor,
-                radius = 5f,
-                center = Offset(x, y)
-            )
-        }
-
-        // Draw data points for left
-        chartData.forEachIndexed { index, data ->
-            val x = padding + index * xStep
-            val y = height - padding - (data.left.toFloat() * yScale)
-            drawCircle(
-                color = leftColor,
-                radius = 5f,
-                center = Offset(x, y)
-            )
-        }
-    }
-}
-
-@Composable
-fun StatsCard(chartData: List<com.example.counter_app.viewmodel.ChartData>) {
-    val totalEntered = chartData.sumOf { it.entered }
-    val totalLeft = chartData.sumOf { it.left }
-    val avgEntered = if (chartData.isNotEmpty()) totalEntered / chartData.size else 0
-    val avgLeft = if (chartData.isNotEmpty()) totalLeft / chartData.size else 0
-
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Estadísticas",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+            OccupancyChart(
+                data = chartData,
+                modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(12.dp))
+@Composable
+private fun StatsSection(stats: ReportStats) {
+    Text(
+        "Estadísticas",
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold
+    )
 
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Primera fila: Total Entradas y Total Salidas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                StatItem("Total Entradas", totalEntered.toString())
-                StatItem("Total Salidas", totalLeft.toString())
+                StatItem("Total Entradas", stats.totalEntries.toString())
+                StatItem("Total Salidas", stats.totalExits.toString())
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // Segunda fila: Aforo Actual y Aforo Máximo
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                StatItem("Promedio Entradas", avgEntered.toString())
-                StatItem("Promedio Salidas", avgLeft.toString())
+                StatItem("Aforo Actual", stats.currentOccupancy.toString())
+                StatItem("Aforo Máximo", stats.peakOccupancy.toString())
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // Tercera fila: Tiempo Promedio de Visita
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.Center
             ) {
-                StatItem("Registros", chartData.size.toString())
-                StatItem("Diferencia", "${totalEntered - totalLeft}")
+                StatItem(
+                    "Tiempo Prom. Visita",
+                    "${stats.avgDwellTimeMinutes} min"
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun StatItem(
+    label: String,
+    value: String,
+    valueColor: Color? = null
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = valueColor ?: MaterialTheme.colorScheme.onSurface
+        )
     }
 }
