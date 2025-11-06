@@ -1,48 +1,28 @@
 package com.example.counter_app.service
 
-import android.app.Application
 import com.example.counter_app.data.Device
-import com.example.counter_app.data.SensorReading
-import com.example.counter_app.repository.DeviceRepository
-import com.example.counter_app.repository.SensorReadingRepository
+import com.example.counter_app.data.SensorEvent
+import com.example.counter_app.data.EventType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.*
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import org.mockito.Mock
-import org.mockito.Mockito.*
-import org.mockito.MockitoAnnotations
 
 /**
- * Tests unitarios para DeviceSimulationService.
+ * Tests unitarios para EventBasedSimulationService.
  *
  * Verifica:
- * - Generación de datos simulados para sensores ultrasónicos
- * - Lógica de entrada/salida de personas (grupos)
- * - Cálculo de ocupación actual
- * - Validación de datos realistas para mall
+ * - Generación de eventos simulados (ENTRY/EXIT/DISCONNECTION)
+ * - Lógica de entrada/salida individual (1 persona por evento)
+ * - Cálculo de ocupación actual desde eventos
+ * - Validación de datos realistas para sensores Arduino
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeviceSimulationServiceTest {
 
-    @Mock
-    private lateinit var application: Application
-
-    @Mock
-    private lateinit var deviceRepository: DeviceRepository
-
-    @Mock
-    private lateinit var sensorReadingRepository: SensorReadingRepository
-
-    private lateinit var service: DeviceSimulationService
-
     @Before
     fun setup() {
-        MockitoAnnotations.openMocks(this)
-        service = DeviceSimulationService(application)
+        // No mocks needed for these tests - they test helper methods
     }
 
     @Test
@@ -81,25 +61,24 @@ class DeviceSimulationServiceTest {
     }
 
     @Test
-    fun `sensor reading has valid timestamp`() {
+    fun `sensor event has valid timestamp`() {
         // Arrange
         val beforeTime = System.currentTimeMillis()
 
         // Act
-        val reading = SensorReading(
+        val event = SensorEvent(
             id = 1L,
             deviceId = 1L,
-            entered = 50,
-            left = 20,
-            capacity = 100,
+            eventType = EventType.ENTRY,
+            peopleCount = 5,
             timestamp = System.currentTimeMillis()
         )
 
         val afterTime = System.currentTimeMillis()
 
         // Assert
-        assertTrue(reading.timestamp >= beforeTime)
-        assertTrue(reading.timestamp <= afterTime)
+        assertTrue(event.timestamp >= beforeTime)
+        assertTrue(event.timestamp <= afterTime)
     }
 
     @Test

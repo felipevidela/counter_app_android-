@@ -112,10 +112,10 @@ class AvgDwellTimeCalculationTest {
         val result = calculateAvgDwellMinutes(data, totalExits = 10)
 
         // Assert
-        // Área: 2×10 + 5×15 + 8×15 + 6×15 + 4×15 + 3×15 + 1×30 = 485 personas-min
-        // Promedio: 485 / 10 ≈ 48 minutos
-        assertTrue("Esperado ~48 min, obtenido: $result", result in 45..50)
-        println("✓ TEST 3 PASADO: $result minutos (esperado: ~48)")
+        // Área: 2×10 + 5×15 + 8×15 + 6×15 + 4×15 + 3×15 + 1×30 = 440 personas-min
+        // Promedio: 440 / 10 = 44 minutos
+        assertTrue("Esperado ~44 min, obtenido: $result", result in 42..46)
+        println("✓ TEST 3 PASADO: $result minutos (esperado: ~44)")
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.example.counter_app.repository
 
 import com.example.counter_app.data.Device
 import com.example.counter_app.data.DeviceDao
+import com.example.counter_app.data.DeviceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -36,7 +37,7 @@ class DeviceRepositoryTest {
     }
 
     @Test
-    fun `insert device calls DAO insert`() = runTest {
+    fun `insert device calls DAO insertDevice`() = runTest {
         // Arrange
         val device = Device(
             id = 1L,
@@ -47,12 +48,14 @@ class DeviceRepositoryTest {
             location = "Store 1",
             isActive = true
         )
+        `when`(deviceDao.insertDevice(device)).thenReturn(1L)
 
         // Act
-        repository.insert(device)
+        val result = repository.insertDevice(device)
 
         // Assert
-        verify(deviceDao, times(1)).insert(device)
+        assertEquals(1L, result)
+        verify(deviceDao, times(1)).insertDevice(device)
     }
 
     @Test
@@ -67,14 +70,14 @@ class DeviceRepositoryTest {
             capacity = 50,
             location = "Store 2"
         )
-        `when`(deviceDao.getDeviceById(deviceId)).thenReturn(flowOf(expectedDevice))
+        `when`(deviceDao.getDeviceByIdFlow(deviceId)).thenReturn(flowOf(expectedDevice))
 
         // Act
         val result = repository.getDeviceById(deviceId).first()
 
         // Assert
         assertEquals(expectedDevice, result)
-        verify(deviceDao, times(1)).getDeviceById(deviceId)
+        verify(deviceDao, times(1)).getDeviceByIdFlow(deviceId)
     }
 
     @Test
@@ -97,7 +100,7 @@ class DeviceRepositoryTest {
     }
 
     @Test
-    fun `update device calls DAO update`() = runTest {
+    fun `update device calls DAO updateDevice`() = runTest {
         // Arrange
         val device = Device(
             id = 1L,
@@ -110,14 +113,14 @@ class DeviceRepositoryTest {
         )
 
         // Act
-        repository.update(device)
+        repository.updateDevice(device)
 
         // Assert
-        verify(deviceDao, times(1)).update(device)
+        verify(deviceDao, times(1)).updateDevice(device)
     }
 
     @Test
-    fun `delete device calls DAO delete`() = runTest {
+    fun `delete device calls DAO deleteDevice`() = runTest {
         // Arrange
         val device = Device(
             id = 1L,
@@ -129,27 +132,22 @@ class DeviceRepositoryTest {
         )
 
         // Act
-        repository.delete(device)
+        repository.deleteDevice(device)
 
         // Assert
-        verify(deviceDao, times(1)).delete(device)
+        verify(deviceDao, times(1)).deleteDevice(device)
     }
 
     @Test
-    fun `getActiveDevices returns only active devices`() = runTest {
+    fun `updateDeviceActiveStatus calls DAO updateDeviceActiveStatus`() = runTest {
         // Arrange
-        val activeDevices = listOf(
-            Device(1L, "Active 1", "Arduino Uno", "AA:BB:CC:DD:EE:01", 100, "Store 1", isActive = true),
-            Device(2L, "Active 2", "ESP32", "AA:BB:CC:DD:EE:02", 150, "Store 2", isActive = true)
-        )
-        `when`(deviceDao.getActiveDevices()).thenReturn(flowOf(activeDevices))
+        val deviceId = 1L
+        val isActive = true
 
         // Act
-        val result = repository.getActiveDevices().first()
+        repository.updateDeviceActiveStatus(deviceId, isActive)
 
         // Assert
-        assertEquals(2, result.size)
-        assertTrue(result.all { it.isActive })
-        verify(deviceDao, times(1)).getActiveDevices()
+        verify(deviceDao, times(1)).updateDeviceActiveStatus(deviceId, isActive)
     }
 }
