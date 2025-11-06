@@ -7,6 +7,7 @@ import com.example.counter_app.data.AlertSettings
 import com.example.counter_app.data.AppDatabase
 import com.example.counter_app.data.SensorEventRepository
 import com.example.counter_app.data.SettingsRepository
+import com.example.counter_app.data.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,11 +24,13 @@ data class SettingsState(
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val sensorEventRepository: SensorEventRepository
     private val settingsRepository: SettingsRepository
+    private val themePreferences: ThemePreferences
 
     init {
         val database = AppDatabase.getDatabase(application)
         sensorEventRepository = SensorEventRepository(database.sensorEventDao())
         settingsRepository = SettingsRepository(database.alertSettingsDao())
+        themePreferences = ThemePreferences(application)
 
         // Inicializar configuración de alertas si no existe
         viewModelScope.launch {
@@ -37,6 +40,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _settings = MutableStateFlow(SettingsState())
     val settings: StateFlow<SettingsState> = _settings
+
+    // StateFlow para dark mode desde DataStore
+    val darkModeEnabled: StateFlow<Boolean> = themePreferences.darkModeFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
 
     // Flow para configuración de alertas
     val alertSettings: StateFlow<AlertSettings> = settingsRepository.getAlertSettings()
@@ -51,7 +62,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleDarkMode(enabled: Boolean) {
-        _settings.value = _settings.value.copy(darkModeEnabled = enabled)
+        // Persistir cambio en DataStore
+        // El StateFlow darkModeEnabled se actualizará automáticamente
+        viewModelScope.launch {
+            themePreferences.saveDarkMode(enabled)
+        }
     }
 
     fun toggleNotifications(enabled: Boolean) {

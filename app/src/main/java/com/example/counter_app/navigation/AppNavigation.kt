@@ -20,7 +20,10 @@ fun AppNavigation() {
             )
         }
         composable("register") {
-            RegistrationScreen(onRegistrationSuccess = { navController.navigate("login") })
+            RegistrationScreen(
+                onRegistrationSuccess = { navController.navigate("login") },
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         composable("main") {
             NewMainScreen(

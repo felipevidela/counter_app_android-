@@ -26,6 +26,7 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsState()
     val alertSettings by viewModel.alertSettings.collectAsState()
+    val darkModeEnabled by viewModel.darkModeEnabled.collectAsState()
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showPermissionRationaleDialog by remember { mutableStateOf(false) }
@@ -146,6 +147,33 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            item {
+                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Modo Oscuro", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Activa el tema oscuro para la aplicación",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = darkModeEnabled,
+                            onCheckedChange = { enabled ->
+                                viewModel.toggleDarkMode(enabled)
+                            }
+                        )
+                    }
+                }
+            }
             }
 
             item {

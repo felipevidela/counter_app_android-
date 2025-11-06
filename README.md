@@ -27,6 +27,58 @@ La aplicación aborda la necesidad de monitorear el aforo en espacios comerciale
 - **Escalable**: Soporte para múltiples dispositivos simultáneos
 - **Segura**: Autenticación de usuarios y notificaciones de eventos críticos
 
+## ✨ Nuevas Funcionalidades (Última Actualización)
+
+### **1. Edición Completa de Dispositivos**
+- ✅ Editar nombre, tipo, ubicación y capacidad de dispositivos existentes
+- ✅ Botón de edición (✏️) en cada tarjeta del Dashboard
+- ✅ Pantalla reutilizada con modo dual (crear/editar)
+- ✅ Preservación de datos críticos (MAC address, estado activo, fecha de creación)
+- ✅ Navegación fluida con parámetros dinámicos
+
+**Implementación:**
+```kotlin
+// Navegación con parámetros
+navController.navigate("device_registration/$deviceId")
+
+// ViewModel con función de actualización
+fun updateDevice(deviceId: Long, name: String, type: String,
+                location: String, capacity: Int, ...)
+```
+
+### **2. Dark Mode con Toggle Manual**
+- ✅ Switch en Configuración → Preferencias → "Modo Oscuro"
+- ✅ Persistencia con DataStore Preferences (sobrevive reinicios)
+- ✅ Cambio en tiempo real sin reiniciar app
+- ✅ Material Design 3 con esquemas de color light/dark completos
+- ✅ Status bar adaptativo según tema
+
+**Tecnología:**
+```kotlin
+// ThemePreferences con DataStore
+class ThemePreferences(context: Context) {
+    val darkModeFlow: Flow<Boolean>
+    suspend fun saveDarkMode(enabled: Boolean)
+}
+
+// MainActivity observa el Flow
+val isDarkMode by themePreferences.darkModeFlow.collectAsState(initial = false)
+Counter_APPTheme(darkTheme = isDarkMode) { ... }
+```
+
+### **3. Fixes Críticos de UI/UX**
+- ✅ **Crash de Ajustes resuelto**: Corregido loop infinito en SettingsViewModel
+- ✅ **Visualización de entradas/salidas**: Dashboard actualizado para usar SensorEvent en tiempo real
+- ✅ **Gráfico en modo oscuro**: Colores adaptativos (números blancos en dark mode)
+- ✅ **Navbar en registro**: TopAppBar con botón de retroceso al login
+- ✅ **Flows reactivos**: Actualización automática de estadísticas en Dashboard
+
+### **4. Mejoras de Arquitectura**
+- ✅ **SensorEventDao**: Agregadas funciones Flow para entradas/salidas
+- ✅ **DashboardViewModel**: Rediseñado para combinar Flows reactivos
+- ✅ **StateFlow en SettingsViewModel**: Uso correcto de `stateIn()` en lugar de `collect()`
+- ✅ **DataStore integration**: Persistencia moderna para preferencias de tema
+
 ## 🚀 Características Principales
 
 ### 1. **Sistema de Eventos Basado en SensorEvent**
@@ -176,6 +228,7 @@ sensorEventRepository.getEventsByDevice(deviceId, limit)
 - **StateFlow** - Manejo de estado reactivo
 - **Coroutines** - Programación asíncrona
 - **Room Database** - Persistencia local con Flow reactivos
+- **DataStore Preferences 1.0.0** - Almacenamiento de preferencias (dark mode)
 
 ### Visualización de Datos
 - **YCharts 2.1.0** - Gráficos profesionales para Jetpack Compose
@@ -446,7 +499,7 @@ app/src/main/java/com/example/counter_app/
 ├── data/
 │   ├── AlertSettings.kt              # Entidad para configuración de alertas
 │   ├── AlertSettingsDao.kt           # DAO de alertas
-│   ├── AppDatabase.kt                # Base de datos (v5)
+│   ├── AppDatabase.kt                # Base de datos (v6)
 │   ├── Converters.kt                 # Type converters para Room
 │   ├── Device.kt
 │   ├── DeviceDao.kt
@@ -455,6 +508,7 @@ app/src/main/java/com/example/counter_app/
 │   ├── SensorEventDao.kt
 │   ├── SensorEventRepository.kt
 │   ├── SettingsRepository.kt         # Repositorio de configuración
+│   ├── ThemePreferences.kt           # ✨ DataStore para dark mode
 │   ├── User.kt
 │   └── UserDao.kt
 ├── domain/
@@ -698,21 +752,32 @@ object ExportManager {
 
 ## 🔄 Roadmap
 
+### Completado ✅
 - [x] Sistema de eventos basado en SensorEvent
 - [x] Gráficos profesionales con YCharts
 - [x] Notificaciones de desconexión
 - [x] Eje Y dinámico en gráficos
 - [x] Permiso runtime para Android 13+
 - [x] Estadísticas avanzadas (tiempo promedio de visita)
-- [x] **Exportación de reportes a PDF/CSV** ✨ Nuevo
-- [x] **Sistema de alertas configurables** ✨ Nuevo
-- [x] **Simulación realista Arduino (1 persona/evento)** ✨ Nuevo
-- [x] **Reset automático de IDs** ✨ Nuevo
+- [x] Exportación de reportes a PDF/CSV
+- [x] Sistema de alertas configurables
+- [x] Simulación realista Arduino (1 persona/evento)
+- [x] Reset automático de IDs
+- [x] **Edición completa de dispositivos** ✨ v1.1
+- [x] **Dark mode con toggle manual** ✨ v1.1
+- [x] **Persistencia con DataStore** ✨ v1.1
+- [x] **Gráficos adaptativos a tema** ✨ v1.1
+- [x] **Navbar en pantalla de registro** ✨ v1.1
+- [x] **Flows reactivos en Dashboard** ✨ v1.1
+
+### En Desarrollo / Futuro 🚧
 - [ ] Dashboard web complementario
-- [ ] Integración con dispositivos IoT reales
+- [ ] Integración con dispositivos IoT reales (Bluetooth)
 - [ ] Predicción de aforo con ML
 - [ ] Análisis de patrones de comportamiento
 - [ ] Sincronización cloud multi-dispositivo
+- [ ] Widgets de Android
+- [ ] Modo offline avanzado
 
 ## 👥 Contribución
 

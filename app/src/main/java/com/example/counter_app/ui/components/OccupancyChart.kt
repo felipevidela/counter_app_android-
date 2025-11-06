@@ -83,6 +83,9 @@ fun OccupancyChart(
         // Determinar el número de pasos para el eje X
         val steps = maxOf(0, data.occupancyPoints.size - 1)
 
+        // Color de las etiquetas - adaptativo según tema
+        val axisColor = MaterialTheme.colorScheme.onSurface
+
         // Eje X (tiempo)
         val xAxisData = AxisData.Builder()
             .axisStepSize(100.dp)
@@ -98,6 +101,8 @@ fun OccupancyChart(
                 } else ""
             }
             .labelAndAxisLinePadding(15.dp)
+            .axisLineColor(axisColor)
+            .axisLabelColor(axisColor)
             .build()
 
         // Eje Y (aforo - número de personas) - dinámico según datos
@@ -110,6 +115,8 @@ fun OccupancyChart(
                 val scaledValue = (value * chartMaxY / yAxisSteps).toInt()
                 "$scaledValue"
             }
+            .axisLineColor(axisColor)
+            .axisLabelColor(axisColor)
             .build()
 
         // Configuración del gráfico

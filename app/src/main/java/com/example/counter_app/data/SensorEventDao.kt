@@ -56,6 +56,15 @@ interface SensorEventDao {
     suspend fun getTotalEntered(deviceId: Long): Int
 
     /**
+     * Calcula el total de personas que han entrado (Flow reactivo).
+     *
+     * @param deviceId ID del dispositivo
+     * @return Flow que emite el total acumulado de entradas
+     */
+    @Query("SELECT COALESCE(SUM(peopleCount), 0) FROM sensor_events WHERE deviceId = :deviceId AND eventType = 'ENTRY'")
+    fun getTotalEnteredFlow(deviceId: Long): Flow<Int>
+
+    /**
      * Calcula el total de personas que han salido (suma de todos los eventos EXIT).
      *
      * @param deviceId ID del dispositivo
@@ -63,6 +72,15 @@ interface SensorEventDao {
      */
     @Query("SELECT COALESCE(SUM(peopleCount), 0) FROM sensor_events WHERE deviceId = :deviceId AND eventType = 'EXIT'")
     suspend fun getTotalLeft(deviceId: Long): Int
+
+    /**
+     * Calcula el total de personas que han salido (Flow reactivo).
+     *
+     * @param deviceId ID del dispositivo
+     * @return Flow que emite el total acumulado de salidas
+     */
+    @Query("SELECT COALESCE(SUM(peopleCount), 0) FROM sensor_events WHERE deviceId = :deviceId AND eventType = 'EXIT'")
+    fun getTotalLeftFlow(deviceId: Long): Flow<Int>
 
     /**
      * Cuenta cuántos eventos hay para un dispositivo.

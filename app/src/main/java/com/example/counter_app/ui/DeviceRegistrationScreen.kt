@@ -16,10 +16,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceRegistrationScreen(
+    deviceId: Long = 0L, // 0L = crear nuevo, >0 = editar existente
     onNavigateBack: () -> Unit,
     onDeviceCreated: (Long) -> Unit,
     viewModel: DeviceRegistrationViewModel = viewModel()
 ) {
+    val isEditMode = deviceId > 0L
+    val editingDevice by viewModel.editingDevice.collectAsState()
+
     var deviceName by remember { mutableStateOf("") }
     var deviceType by remember { mutableStateOf("Arduino Uno") }
     var deviceLocation by remember { mutableStateOf("") }
@@ -29,10 +33,29 @@ fun DeviceRegistrationScreen(
 
     val deviceTypes = listOf("Arduino Uno", "Arduino Nano", "ESP32", "NodeMCU", "Arduino Mega")
 
+    // Cargar dispositivo si estamos en modo edición
+    LaunchedEffect(deviceId) {
+        if (isEditMode) {
+            viewModel.loadDevice(deviceId)
+        } else {
+            viewModel.clearEditingDevice()
+        }
+    }
+
+    // Pre-rellenar campos cuando se carga el dispositivo
+    LaunchedEffect(editingDevice) {
+        editingDevice?.let { device ->
+            deviceName = device.name
+            deviceType = device.type
+            deviceLocation = device.location
+            capacity = device.capacity.toString()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nuevo Dispositivo") },
+                title = { Text(if (isEditMode) "Editar Dispositivo" else "Nuevo Dispositivo") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -169,23 +192,44 @@ fun DeviceRegistrationScreen(
             Button(
                 onClick = {
                     val capacityInt = capacity.toIntOrNull() ?: 0
-                    viewModel.createDevice(
-                        name = deviceName,
-                        type = deviceType,
-                        location = deviceLocation,
-                        capacity = capacityInt,
-                        onSuccess = { deviceId ->
-                            onDeviceCreated(deviceId)
-                        },
-                        onError = { errorMsg ->
-                            error = errorMsg
-                        }
-                    )
+                    if (isEditMode && editingDevice != null) {
+                        // Modo edición
+                        viewModel.updateDevice(
+                            deviceId = editingDevice!!.id,
+                            name = deviceName,
+                            type = deviceType,
+                            location = deviceLocation,
+                            capacity = capacityInt,
+                            macAddress = editingDevice!!.macAddress,
+                            isActive = editingDevice!!.isActive,
+                            createdAt = editingDevice!!.createdAt,
+                            onSuccess = {
+                                onNavigateBack()
+                            },
+                            onError = { errorMsg ->
+                                error = errorMsg
+                            }
+                        )
+                    } else {
+                        // Modo creación
+                        viewModel.createDevice(
+                            name = deviceName,
+                            type = deviceType,
+                            location = deviceLocation,
+                            capacity = capacityInt,
+                            onSuccess = { newDeviceId ->
+                                onDeviceCreated(newDeviceId)
+                            },
+                            onError = { errorMsg ->
+                                error = errorMsg
+                            }
+                        )
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = deviceName.isNotBlank() && capacity.isNotBlank()
             ) {
-                Text("Crear Dispositivo Arduino")
+                Text(if (isEditMode) "Actualizar Dispositivo" else "Crear Dispositivo Arduino")
             }
         }
     }

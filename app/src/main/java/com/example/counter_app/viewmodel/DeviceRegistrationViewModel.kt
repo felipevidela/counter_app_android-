@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.counter_app.data.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
@@ -15,6 +17,34 @@ class DeviceRegistrationViewModel(application: Application) : AndroidViewModel(a
         deviceRepository = DeviceRepository(database.deviceDao())
     }
 
+    // StateFlow para el dispositivo en edición (null si es nuevo)
+    private val _editingDevice = MutableStateFlow<Device?>(null)
+    val editingDevice: StateFlow<Device?> = _editingDevice
+
+    /**
+     * Carga un dispositivo existente para edición
+     */
+    fun loadDevice(deviceId: Long) {
+        viewModelScope.launch {
+            try {
+                val device = deviceRepository.getDeviceByIdSuspend(deviceId)
+                _editingDevice.value = device
+            } catch (e: Exception) {
+                _editingDevice.value = null
+            }
+        }
+    }
+
+    /**
+     * Limpia el dispositivo en edición
+     */
+    fun clearEditingDevice() {
+        _editingDevice.value = null
+    }
+
+    /**
+     * Crea un nuevo dispositivo
+     */
     fun createDevice(
         name: String,
         type: String,
@@ -47,6 +77,51 @@ class DeviceRegistrationViewModel(application: Application) : AndroidViewModel(a
                 onSuccess(deviceId)
             } catch (e: Exception) {
                 onError("Error al crear el dispositivo: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Actualiza un dispositivo existente
+     */
+    fun updateDevice(
+        deviceId: Long,
+        name: String,
+        type: String,
+        location: String,
+        capacity: Int,
+        macAddress: String,
+        isActive: Boolean,
+        createdAt: Long,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (name.isBlank()) {
+            onError("El nombre del dispositivo no puede estar vacío")
+            return
+        }
+
+        if (capacity <= 0) {
+            onError("La capacidad debe ser mayor a 0")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val device = Device(
+                    id = deviceId,
+                    name = name,
+                    type = type,
+                    location = location,
+                    macAddress = macAddress,
+                    capacity = capacity,
+                    isActive = isActive,
+                    createdAt = createdAt
+                )
+                deviceRepository.updateDevice(device)
+                onSuccess()
+            } catch (e: Exception) {
+                onError("Error al actualizar el dispositivo: ${e.message}")
             }
         }
     }

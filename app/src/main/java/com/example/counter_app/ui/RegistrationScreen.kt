@@ -2,6 +2,7 @@ package com.example.counter_app.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -14,8 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.counter_app.auth.LoginViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegistrationScreen(onRegistrationSuccess: () -> Unit) {
+fun RegistrationScreen(
+    onRegistrationSuccess: () -> Unit,
+    onNavigateBack: () -> Unit = {}
+) {
     val loginViewModel: LoginViewModel = viewModel()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -24,10 +29,29 @@ fun RegistrationScreen(onRegistrationSuccess: () -> Unit) {
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Crear Cuenta") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Volver al login"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally

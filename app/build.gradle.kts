@@ -60,6 +60,9 @@ dependencies {
     implementation("co.yml:ycharts:2.1.0")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
+    // DataStore para preferencias (Dark Mode)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // Unit Testing
     testImplementation(libs.junit)
     testImplementation("org.mockito:mockito-core:5.7.0")

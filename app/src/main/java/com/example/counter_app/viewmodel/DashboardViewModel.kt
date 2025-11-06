@@ -7,19 +7,25 @@ import com.example.counter_app.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+data class DeviceStats(
+    val entered: Int,
+    val left: Int,
+    val capacity: Int
+)
+
 data class DeviceWithLatestReading(
     val device: Device,
-    val latestReading: SensorReading?
+    val latestReading: DeviceStats?
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val deviceRepository: DeviceRepository
-    private val sensorReadingRepository: SensorReadingRepository
+    private val sensorEventRepository: SensorEventRepository
 
     init {
         val database = AppDatabase.getDatabase(application)
         deviceRepository = DeviceRepository(database.deviceDao())
-        sensorReadingRepository = SensorReadingRepository(database.sensorReadingDao())
+        sensorEventRepository = SensorEventRepository(database.sensorEventDao())
     }
 
     val devices: Flow<List<Device>> = deviceRepository.getAllDevices()
@@ -30,8 +36,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         } else {
             combine(
                 deviceList.map { device ->
-                    sensorReadingRepository.getLatestReading(device.id).map { reading ->
-                        DeviceWithLatestReading(device, reading)
+                    // Combinar flows de entradas y salidas para cada dispositivo
+                    combine(
+                        sensorEventRepository.getTotalEnteredFlow(device.id),
+                        sensorEventRepository.getTotalLeftFlow(device.id)
+                    ) { entered, left ->
+                        val stats = DeviceStats(entered, left, device.capacity)
+                        DeviceWithLatestReading(device, stats)
                     }
                 }
             ) { array ->

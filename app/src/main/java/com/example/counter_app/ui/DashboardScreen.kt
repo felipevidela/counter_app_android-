@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
@@ -27,6 +28,7 @@ import com.example.counter_app.viewmodel.DeviceWithLatestReading
 fun DashboardScreen(
     onDeviceClick: (Long) -> Unit,
     onAddDeviceClick: () -> Unit,
+    onEditDevice: (Long) -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val devicesWithReadings by viewModel.devicesWithReadings.collectAsState(initial = emptyList())
@@ -81,7 +83,8 @@ fun DashboardScreen(
                         deviceWithReading = item,
                         onClick = { onDeviceClick(item.device.id) },
                         onToggleStatus = { viewModel.toggleDeviceStatus(item.device.id, it) },
-                        onDelete = { viewModel.deleteDevice(item.device) }
+                        onDelete = { viewModel.deleteDevice(item.device) },
+                        onEdit = { onEditDevice(item.device.id) }
                     )
                 }
             }
@@ -94,7 +97,8 @@ fun DeviceCard(
     deviceWithReading: DeviceWithLatestReading,
     onClick: () -> Unit,
     onToggleStatus: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     val device = deviceWithReading.device
     val reading = deviceWithReading.latestReading
@@ -187,12 +191,21 @@ fun DeviceCard(
                     }
                 }
 
-                IconButton(onClick = { showDeleteDialog = true }) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Eliminar",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                Row {
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Editar",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Eliminar",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
 

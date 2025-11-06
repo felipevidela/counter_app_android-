@@ -39,10 +39,24 @@ class SensorEventRepository(private val sensorEventDao: SensorEventDao) {
     }
 
     /**
+     * Flow reactivo del total de personas que han entrado.
+     */
+    fun getTotalEnteredFlow(deviceId: Long): Flow<Int> {
+        return sensorEventDao.getTotalEnteredFlow(deviceId)
+    }
+
+    /**
      * Calcula el total de personas que han salido.
      */
     suspend fun getTotalLeft(deviceId: Long): Int {
         return sensorEventDao.getTotalLeft(deviceId)
+    }
+
+    /**
+     * Flow reactivo del total de personas que han salido.
+     */
+    fun getTotalLeftFlow(deviceId: Long): Flow<Int> {
+        return sensorEventDao.getTotalLeftFlow(deviceId)
     }
 
     /**

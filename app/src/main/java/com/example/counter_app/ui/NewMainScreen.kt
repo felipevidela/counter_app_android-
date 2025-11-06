@@ -61,7 +61,9 @@ fun NewMainScreen(onLogout: () -> Unit) {
 
     // Routes where bottom bar should be hidden
     val routesWithoutBottomBar = listOf("device_detail", "device_registration")
-    val showBottomBar = currentRoute !in routesWithoutBottomBar
+    val showBottomBar = currentRoute !in routesWithoutBottomBar &&
+        !currentRoute.orEmpty().startsWith("device_registration/") &&
+        !currentRoute.orEmpty().startsWith("device_detail/")
 
     Scaffold(
         bottomBar = {
@@ -102,7 +104,10 @@ fun NewMainScreen(onLogout: () -> Unit) {
                         navController.navigate("device_detail/$deviceId")
                     },
                     onAddDeviceClick = {
-                        navController.navigate("device_registration")
+                        navController.navigate("device_registration/0")
+                    },
+                    onEditDevice = { deviceId ->
+                        navController.navigate("device_registration/$deviceId")
                     }
                 )
             }
@@ -146,7 +151,7 @@ fun NewMainScreen(onLogout: () -> Unit) {
             }
 
             composable(
-                route = "device_registration",
+                route = "device_registration/{deviceId}",
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { it },
@@ -159,12 +164,14 @@ fun NewMainScreen(onLogout: () -> Unit) {
                         animationSpec = tween(300)
                     ) + fadeOut(animationSpec = tween(300))
                 }
-            ) {
+            ) { backStackEntry ->
+                val deviceId = backStackEntry.arguments?.getString("deviceId")?.toLongOrNull() ?: 0L
                 DeviceRegistrationScreen(
+                    deviceId = deviceId,
                     onNavigateBack = { navController.popBackStack() },
-                    onDeviceCreated = { deviceId ->
-                        navController.navigate("device_detail/$deviceId") {
-                            popUpTo("device_registration") { inclusive = true }
+                    onDeviceCreated = { newDeviceId ->
+                        navController.navigate("device_detail/$newDeviceId") {
+                            popUpTo("device_registration/{deviceId}") { inclusive = true }
                         }
                     }
                 )
